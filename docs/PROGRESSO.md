@@ -1,4 +1,4 @@
-# PROGRESSO DO PROJETO GREENCODE
+﻿# PROGRESSO DO PROJETO GREENCODE
 
 > Estado REAL, verificado por comandos. Última atualização: 2026-10-26.
 
@@ -10,22 +10,16 @@
 - `npm run typecheck` e `npm run lint` com exit 0; `npm test` com 2 testes passando
 - NÃO demonstrado: graceful shutdown (PENDENCIAS P10)
 
-### Fase 2: verificada
-- `prisma validate`: schema válido
-- `prisma migrate deploy` em banco vazio: 2 migrações aplicadas; `migrate status`: "Database schema is up to date!"
-- Trigger de Auditoria (saída real): UPDATE bloqueado; DELETE sem variável bloqueado; DELETE com `SET LOCAL greencode.limpeza='on'` de registro com 179 dias bloqueado; de 181 dias permitido; TRUNCATE bloqueado
-- CHECKs (erro real de cada um): parametros.valor < 0; contratos.fim < inicio; triagem_completa sem classificacao_destino; valor_aquisicao < 0; lote com data futura
-- Trigger de Movimentacao: sem mudança bloqueada; só mudança de estado físico aceita
-- Sequence `seq_codigo_barras` funcionando (nextval = 1)
-
-### Bug encontrado e corrigido na Fase 2
-O trigger da Auditoria deixava o DELETE passar quando a variável `greencode.limpeza` nunca tinha sido definida (`current_setting(..., true)` devolve NULL e `NULL <> 'on'` é NULL). Corrigido com `COALESCE(..., '')` na migração 2 e reaplicado em banco recriado.
-
-### Observação
-O CHECK `data_entrada <= CURRENT_DATE` usa a data do banco (UTC). Entre 21h e 24h em America/Sao_Paulo, o banco já vê o dia seguinte. A regra exata (R2, fuso `TZ_NEGOCIO`) fica no service.
-
+### Fase 2: verificada (revisada após feedback)
+- Schema: `senha_hash`, `@db.Uuid` em PKs/FKs, `Auditoria.antes/depois` opcionais, `onDelete: Restrict` explícito em todas as relações, `Equipamento.status @default(RECEBIDO)`, índice em `movimentacoes.usuario_id`; `prisma format` e `validate` ok
+- Migração 1 regenerada com `prisma migrate diff`; migração 2 reescrita (CHECKs de CNPJ, lote com tolerância de 1 dia, R3, R4, trigger de imutabilidade de movimentacoes)
+- `prisma migrate reset --force --skip-seed`: 2 migrações aplicadas em banco vazio
+- Verificado com saída real (19 erros esperados + controles positivos): CHECKs antigos e novos, triggers de Auditoria e Movimentacao, INSERT de Auditoria com `antes` nulo, status padrão RECEBIDO
+- Bug do trigger (NULL <> 'on') documentado em DECISOES D-17; decisões D-16 e D-18 adicionadas
+- typecheck, lint e testes continuam verdes
 ## Ambiente
 Os containers `greencode_db` (5432) e `greencode_db_test` (5433) foram subidos manualmente. No sandbox, `localhost:5432` e o pipe do Docker podem ficar inacessíveis; os comandos de banco rodaram fora do sandbox.
 
 ## Próximo passo
 Após "APROVADO": Fase 3 (domínio: enums, erros, validadores, fábricas, regras de transição, Relogio) com testes unitários.
+

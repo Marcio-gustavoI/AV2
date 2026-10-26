@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "Papel" AS ENUM ('ADMIN', 'OPERADOR_CADASTRO', 'GESTOR_ALMOXARIFADO', 'AUDITOR');
 
@@ -15,9 +18,9 @@ CREATE TYPE "ClassificacaoDestino" AS ENUM ('REUTILIZACAO', 'RECICLAGEM', 'DESCA
 
 -- CreateTable
 CREATE TABLE "usuarios" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
-    "senhaHash" TEXT NOT NULL,
+    "senha_hash" TEXT NOT NULL,
     "papel" "Papel" NOT NULL,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
     "versao" INTEGER NOT NULL DEFAULT 1,
@@ -38,7 +41,7 @@ CREATE TABLE "parametros" (
 
 -- CreateTable
 CREATE TABLE "organizacoes" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "codigo" TEXT NOT NULL,
     "cnpj" VARCHAR(14) NOT NULL,
     "nome" TEXT NOT NULL,
@@ -50,8 +53,8 @@ CREATE TABLE "organizacoes" (
 
 -- CreateTable
 CREATE TABLE "contratos" (
-    "id" TEXT NOT NULL,
-    "organizacao_id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "organizacao_id" UUID NOT NULL,
     "numero" TEXT NOT NULL,
     "clausulas" JSONB,
     "inicio" DATE NOT NULL,
@@ -63,8 +66,8 @@ CREATE TABLE "contratos" (
 
 -- CreateTable
 CREATE TABLE "lotes" (
-    "id" TEXT NOT NULL,
-    "organizacao_id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "organizacao_id" UUID NOT NULL,
     "nota_fiscal" TEXT NOT NULL,
     "transportadora" TEXT NOT NULL,
     "data_entrada" DATE NOT NULL,
@@ -76,14 +79,14 @@ CREATE TABLE "lotes" (
 
 -- CreateTable
 CREATE TABLE "equipamentos" (
-    "id" TEXT NOT NULL,
-    "lote_id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "lote_id" UUID NOT NULL,
     "codigo_barras_interno" TEXT NOT NULL,
     "tipo" "TipoEquipamento" NOT NULL,
     "descricao" TEXT NOT NULL,
     "valor_aquisicao" DECIMAL(18,2),
     "estado_fisico" "EstadoFisico" NOT NULL,
-    "status" "StatusEquipamento" NOT NULL,
+    "status" "StatusEquipamento" NOT NULL DEFAULT 'RECEBIDO',
     "triagem_completa" BOOLEAN NOT NULL DEFAULT false,
     "classificacao_destino" "ClassificacaoDestino",
     "versao" INTEGER NOT NULL DEFAULT 1,
@@ -94,14 +97,14 @@ CREATE TABLE "equipamentos" (
 
 -- CreateTable
 CREATE TABLE "movimentacoes" (
-    "id" TEXT NOT NULL,
-    "equipamento_id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
+    "equipamento_id" UUID NOT NULL,
     "status_anterior" "StatusEquipamento" NOT NULL,
     "status_novo" "StatusEquipamento" NOT NULL,
     "estado_anterior" "EstadoFisico" NOT NULL,
     "estado_novo" "EstadoFisico" NOT NULL,
     "justificativa" TEXT,
-    "usuario_id" TEXT NOT NULL,
+    "usuario_id" UUID NOT NULL,
     "versao" INTEGER NOT NULL DEFAULT 1,
     "criado_em" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -110,13 +113,13 @@ CREATE TABLE "movimentacoes" (
 
 -- CreateTable
 CREATE TABLE "auditorias" (
-    "id" TEXT NOT NULL,
-    "usuario_id" TEXT,
+    "id" UUID NOT NULL,
+    "usuario_id" UUID,
     "acao" TEXT NOT NULL,
     "entidade" TEXT NOT NULL,
     "entidade_id" TEXT NOT NULL,
-    "antes" JSONB NOT NULL,
-    "depois" JSONB NOT NULL,
+    "antes" JSONB,
+    "depois" JSONB,
     "criado_em" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "auditorias_pkey" PRIMARY KEY ("id")
@@ -162,6 +165,9 @@ CREATE INDEX "equipamentos_criado_em_idx" ON "equipamentos"("criado_em");
 CREATE INDEX "movimentacoes_equipamento_id_idx" ON "movimentacoes"("equipamento_id");
 
 -- CreateIndex
+CREATE INDEX "movimentacoes_usuario_id_idx" ON "movimentacoes"("usuario_id");
+
+-- CreateIndex
 CREATE INDEX "movimentacoes_criado_em_idx" ON "movimentacoes"("criado_em");
 
 -- CreateIndex
@@ -189,4 +195,5 @@ ALTER TABLE "movimentacoes" ADD CONSTRAINT "movimentacoes_equipamento_id_fkey" F
 ALTER TABLE "movimentacoes" ADD CONSTRAINT "movimentacoes_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "auditorias" ADD CONSTRAINT "auditorias_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "auditorias" ADD CONSTRAINT "auditorias_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+

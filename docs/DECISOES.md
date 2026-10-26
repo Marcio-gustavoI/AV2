@@ -323,6 +323,48 @@
 
 ---
 
+## D-16 — O banco é a rede de segurança; as regras exatas ficam no service
+
+**Contexto:** Algumas regras dependem de fuso e de regra de negócio (R2: data do lote, com `TZ_NEGOCIO`). `CURRENT_DATE` do PostgreSQL usa o fuso do servidor (UTC), e entre 21h e 24h em America/Sao_Paulo o banco já está no dia seguinte.
+
+**Decisão:** O CHECK do Lote é `data_entrada <= CURRENT_DATE + 1` (tolerância de um dia). Ele só impede datas absurdas. A regra exata (não futura, máximo 90 dias, no fuso de negócio, via `Relogio`) fica no service/`ValidadorLote`. O mesmo vale para os demais CHECKs, que duplicam as regras R3 (desmonte exige triagem), R4 (justificativa em queda de 2 níveis), R10 (movimentação precisa mudar algo) e o formato do CNPJ (`^[A-Z0-9]{12}[0-9]{2}$`; dígitos verificadores só no service).
+
+**Alternativas rejeitadas:** `CURRENT_DATE` sem tolerância (rejeitaria lotes legítimos no fim da noite); `(NOW() AT TIME ZONE 'America/Sao_Paulo')::date` (acoplaria o schema ao fuso e duplicaria `TZ_NEGOCIO`, que é configurável por env).
+
+**Consequências:** Duas camadas de defesa. O service devolve a mensagem de negócio (422); se um bug do service deixar passar, o banco recusa o dado inconsistente.
+
+---
+
+## D-17 — Bug do trigger de Auditoria (`NULL <> 'on'`) e correção com COALESCE
+
+**Contexto:** Na primeira bateria de testes manuais, `DELETE` sem a variável `greencode.limpeza` apagou um registro de 181 dias. `current_setting('greencode.limpeza', true)` devolve `NULL` quando a variável nunca foi definida na sessão, e `NULL <> 'on'` resulta em `NULL`, não `TRUE`; o `IF` não disparou e o `DELETE` passou. Só a checagem de 180 dias foi aplicada.
+
+**Decisão:** `limpeza_ativa := COALESCE(current_setting('greencode.limpeza', true), '')`. O banco foi recriado e o teste repetido: DELETE sem variável é bloqueado; com `SET LOCAL ... = 'on'` bloqueia registros com 179 dias e permite os de 181.
+
+**Alternativas rejeitadas:** capturar `undefined_object` em um bloco `EXCEPTION` (o `current_setting` com `missing_ok = true` não lança esse erro, então o tratamento nunca executava).
+
+**Consequências:** O teste automatizado da Fase 10 deve cobrir o caso "variável nunca definida", além de "off" e "on". Limitação conhecida: quem tem acesso ao banco pode executar `SET LOCAL greencode.limpeza = 'on'`. A alternativa mais forte é uma role de banco separada, com permissão de DELETE somente para o job de retenção (registrada em SEGURANCA.md).
+
+---
+
+## D-18 — Movimentação imutável e escolhas de modelagem do schema
+
+**Contexto:** `Movimentacao` é histórico append-only (C8).
+
+**Decisão:**
+- Trigger bloqueia UPDATE e DELETE em `movimentacoes`, sem exceção. TRUNCATE não é bloqueado de propósito, para a limpeza entre testes (`TRUNCATE ... CASCADE`); em produção, a role da aplicação não deve ter esse privilégio.
+- A R4 também existe como CHECK (`fn_estado_fisico_valor`, função IMMUTABLE que mapeia o enum para 0..4), exigindo justificativa com 10+ caracteres em queda de 2 ou mais níveis.
+- Chaves primárias e estrangeiras usam `@db.Uuid` (tipo nativo, 16 bytes, validado pelo banco). `Auditoria.entidadeId` é `String` porque pode apontar para chaves não UUID (ex.: `Parametro.chave`).
+- `Auditoria.antes`/`depois` são opcionais: uma criação não tem estado "antes".
+- Todas as relações têm `onDelete: Restrict` explícito, inclusive a opcional de Auditoria: nada de negócio é apagado em cascata.
+- `Equipamento.status` tem `@default(RECEBIDO)`; `senhaHash` é mapeado para `senha_hash`.
+
+**Alternativas rejeitadas:** `ON DELETE CASCADE` (apagaria histórico auditável); `SET NULL` na Auditoria (apagaria o autor do registro); `TEXT` para UUID (aceita lixo).
+
+**Consequências:** O banco recusa dados fora de padrão (ids malformados, histórico alterado). Os testes e o seed precisam gerar UUIDs válidos e a limpeza de testes precisa de TRUNCATE.
+
+---
+
 ## Limites do monólito: quando eu dividiria?
 
 O greencode foi construído como monólito modular com interfaces de repositório bem definidas. Esta arquitetura permite evoluir para microsserviços quando:
