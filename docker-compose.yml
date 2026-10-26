@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: greencode_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-greencode}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-greencode}
+      POSTGRES_DB: ${POSTGRES_DB:-greencode}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - greencode_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-greencode} -d ${POSTGRES_DB:-greencode}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: greencode_db_test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-greencode}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-greencode}
+      POSTGRES_DB: ${POSTGRES_DB_TEST:-greencode_test}
+    ports:
+      - "${POSTGRES_TEST_PORT:-5433}:5432"
+    volumes:
+      - greencode_pgdata_test:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-greencode} -d ${POSTGRES_DB_TEST:-greencode_test}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  greencode_pgdata:
+    name: greencode_pgdata
+  greencode_pgdata_test:
+    name: greencode_pgdata_test

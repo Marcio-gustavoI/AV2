@@ -31,3 +31,6 @@ npm run typecheck ; npm run lint ; npm test
 
 ## Fases futuras
 Fases 3 a 11 pendentes (ver docs/ESPECIFICACAO.md seção 18).
+
+## BLOQUEIO (2026-10-26)
+Docker CLI existe, mas o daemon (pipe dockerDesktopLinuxEngine) nao esta disponivel; Docker Desktop iniciado via Start-Process nao ficou em execucao. psql ausente. Migracoes e triggers NAO foram executados. Retomar em: docker compose up -d postgres postgres_test.
