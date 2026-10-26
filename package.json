@@ -1,0 +1,71 @@
+{
+  "name": "greencode",
+  "version": "1.0.0",
+  "description": "API REST para logística reversa de resíduos eletrônicos",
+  "main": "dist/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --project tsconfig.test.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.ts\"",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
+    "test:db:preparar": "tsx scripts/preparar-banco-teste.ts",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "criar-admin": "tsx scripts/criar-admin.ts",
+    "jornada": "tsx scripts/jornada.ts",
+    "limpar-auditoria": "tsx scripts/limpar-auditoria.ts"
+  },
+  "keywords": [
+    "logistica-reversa",
+    "residuos-eletronicos",
+    "rastreabilidade",
+    "api-rest"
+  ],
+  "author": "greencode",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^11.3.1",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/jwt": "^10.2.5",
+    "@fastify/rate-limit": "^11.2.1",
+    "@fastify/swagger": "^9.9.2",
+    "@fastify/swagger-ui": "^6.1.2",
+    "@fastify/type-provider-typebox": "^6.3.0",
+    "@prisma/client": "^6.19.3",
+    "@sinclair/typebox": "^0.34.52",
+    "bcryptjs": "^3.0.3",
+    "decimal.js": "^10.6.0",
+    "dotenv": "^16.6.1",
+    "fastify": "^5.12.7",
+    "pino": "^10.4.0",
+    "pino-roll": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.6.5",
+    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/parser": "^8.72.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "cross-env": "^10.1.0",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "prisma": "^6.19.3",
+    "rimraf": "^6.1.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

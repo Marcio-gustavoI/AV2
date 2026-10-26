@@ -4,85 +4,84 @@
 
 ---
 
-## P1 — CNPJ Alfanumérico (CONFIRMAR COM PROFESSOR)
+## P1 — CNPJ alfanumérico (pesquisa CONFIRMADA; confirmar só a expectativa com o professor)
 
-**Contexto:** A data atual é 2026-10-21. O CNPJ alfanumérico entrou em vigor no Brasil em 2026. A especificação (R1) menciona: "Sobre CNPJ alfanumérico (vigente no Brasil a partir de 2026): verifique a regra oficial da Receita Federal por pesquisa; se confirmar que o cálculo é o mesmo com valor = código ASCII − 48, aceite letras e dígitos; se não conseguir confirmar, aceite apenas numérico e registre em DECISOES.md."
+**Contexto:** O CNPJ alfanumérico entrou em vigor em 2026 (IN RFB nº 2.229/2024). A especificação (R1) exige pesquisa antes de aceitar letras.
 
-**Decisão adotada:** Será feita pesquisa na Receita Federal/IN RFB. Se confirmado o algoritmo compatível (valor = ASCII − 48), o validador aceitará alfanumérico. Caso contrário, aceitar apenas numérico por ora.
+**Pesquisa:** confirmada na Fase 0 (SERPRO/gov.br): Módulo 11 com valor = código ASCII − 48; 12 primeiras posições aceitam A–Z e 0–9; os 2 dígitos verificadores são numéricos. Ver **DECISOES.md D-10**.
 
-**Ação necessária:** Professor confirmar expectativa de validação do CNPJ alfanumérico.
+**Decisão adotada:** `ValidadorCnpj` aceita letras e dígitos. Normalização remove pontuação e coloca em maiúsculas; formato `/^[A-Z0-9]{12}\d{2}$/`.
 
----
-
-## P2 — Contrato opcional para criar lote (CONFIRMAR COM PROFESSOR)
-
-**Contexto:** A AV2 diz que a organização tem contrato opcional. A decisão C6 adota: não exigir contrato vigente para criar lote.
-
-**Decisão adotada:** Criar lote não exige contrato vigente. O contrato é um relacionamento independente da organização.
-
-**Ação necessária:** Professor confirmar se a criação de lote deveria exigir contrato vigente.
+**Ação necessária:** professor confirmar se a avaliação espera CNPJ alfanumérico ou apenas numérico (o mesmo algoritmo cobre ambos).
 
 ---
 
-## P3 — psql não disponível no PATH do Windows
+## P2 — Contrato opcional para criar lote (CONFIRMAR COM O PROFESSOR)
 
-**Contexto:** `psql` não está instalado no PATH do ambiente de desenvolvimento Windows. Docker está disponível.
+**Contexto:** a AV2 diz que o contrato é opcional. Decisão C6: não exigir contrato vigente para criar lote.
 
-**Decisão adotada:** PostgreSQL será provisionado exclusivamente via Docker Compose. Comandos de banco usarão `docker exec` quando necessário via o CLI do Prisma.
-
-**Impacto:** Nenhum — Docker Compose com PostgreSQL é a abordagem primária documentada na especificação.
+**Ação necessária:** professor confirmar.
 
 ---
 
-## P4 — Testes de SIGTERM no Windows
+## P3 — `psql` não está no PATH do Windows
 
-**Contexto:** A especificação (seção 13) menciona: "Se o teste de SIGTERM não for confiável no Windows, marque como pulado nesse SO com justificativa (e não oculte)."
-
-**Decisão adotada:** O teste de graceful shutdown com SIGTERM será marcado com `test.skipIf(process.platform === 'win32')` no Windows, com comentário explicativo. O teste roda normalmente no CI (Ubuntu).
+**Decisão:** PostgreSQL via Docker Compose; comandos SQL manuais via `docker exec ... psql`. Impacto nulo.
 
 ---
 
-## P5 — Fórmula de cálculo financeiro (CONFIRMAR COM PROFESSOR)
+## P4 — Teste de SIGTERM no Windows
 
-**Contexto:** A especificação (R8) descreve: `valorResidual = valorAquisicao × (1 − coeficienteDepreciação(tipo))` e `imposto = valorResidual × alíquota`. A especificação instrui registrar como "suposição" em DECISOES.md.
-
-**Decisão adotada:** Implementar exatamente a fórmula descrita. Arredondamento a 2 casas usando ROUND da aritmética Decimal.
-
-**Ação necessária:** Professor confirmar fórmula e regra de arredondamento.
+**Decisão:** teste de shutdown com SIGTERM usa `skipIf(process.platform === 'win32')`, com justificativa no código; roda no CI Linux.
 
 ---
 
-## P6 — Diagrama UML não fornecido (suposição C5)
+## P5 — Fórmula financeira R8 (CONFIRMAR COM O PROFESSOR)
 
-**Contexto:** O diagrama UML da AV1 não foi fornecido. Os nomes de classes, enums e campos são baseados na especificação do prompt.
-
-**Decisão adotada:** Nomear conforme descrito na especificação. Produzir o UML Mermaid do que foi realmente implementado em docs/ARQUITETURA.md.
+`valorResidual = valorAquisicao × (1 − coeficiente(tipo))`, `imposto = valorResidual × alíquota`, arredondamento a 2 casas (ROUND_HALF_UP). Registrada como suposição.
 
 ---
 
-## P7 — Campo `versao` em Auditoria (decisão C8)
+## P6 — UML da AV1 não fornecido (C5)
 
-**Contexto:** A especificação (C8) diz que `Auditoria` não recebe `versao`, com justificativa em DECISOES.md. `Movimentacao` recebe `versao = 1` por conformidade literal com A2-14.
-
-**Decisão adotada:** `Auditoria` não tem campo `versao`. `Movimentacao` tem `versao = 1` (constante, pois é append-only).
+Nomes de classes/enums/campos são suposições baseadas na especificação. UML do implementado irá em `docs/ARQUITETURA.md`.
 
 ---
 
-## P8 — Verificação em múltiplos SOs
+## P7 — `versao` em Auditoria (C8)
 
-**Contexto:** A especificação pede registro de quais verificações foram executadas em cada SO.
-
-**Status:**
-- Windows 10/11: ambiente de desenvolvimento ativo (versões verificadas em 2026-10-21)
-- Ubuntu 24.04: via CI (GitHub Actions) — verificações de CI serão registradas quando o CI for configurado
+`Auditoria` não tem `versao`; `Movimentacao` tem `versao = 1`.
 
 ---
 
-## P9 — Limite de 3 tentativas para correção de falhas
+## P8 — Verificação por sistema operacional
 
-**Contexto:** O protocolo (seção 0.5) instrui: "se travar após 3 tentativas na mesma falha, registre em PENDENCIAS.md e explique".
+- Windows 10/11: ambiente de desenvolvimento (verificações registradas em DECISOES.md D-15 e PROGRESSO.md).
+- Ubuntu 24.04: somente via CI (Fase 10), ainda não executado.
 
-**Status:** Nenhuma falha persistente registrada até a Fase 0.
+---
+
+## P9 — Vulnerabilidade `deepmerge-ts` (transitiva do Prisma 6)
+
+**Contexto:** `npm audit` reporta 3 vulnerabilidades `high` na cadeia `prisma → @prisma/config → deepmerge-ts < 8.0.0` (esgotamento de pilha ao mesclar objetos recursivos).
+
+**Decisão:** manter Prisma 6.19.3. `npm audit fix --force` migraria para Prisma 7 (config e adapter diferentes), o que reescreveria a Fase 2. Afeta a CLI de desenvolvimento, não o fluxo de dados da API.
+
+**Ação necessária:** professor confirmar que manter Prisma 6 é aceitável. Registrar como risco residual em SEGURANCA.md.
+
+---
+
+## P10 — Graceful shutdown ainda não demonstrado no Windows
+
+**Contexto:** no Windows, matar um processo filho de fora não aciona o handler de `SIGINT`. Na Fase 1 foram verificados apenas boot, `/saude` e 404 padronizado.
+
+**Alternativa:** teste automatizado com processo filho na Fase 10 (SIGTERM pulado no Windows, executado no CI Linux). **Ainda não executado.**
+
+---
+
+## P11 — Mensagem de boot cita `/docs` antes de o Swagger existir
+
+`src/server.ts` loga a URL `/docs`, mas o Swagger só será registrado na Fase 8. Corrigir/validar então.
 
 ---
 
@@ -90,4 +89,5 @@
 
 | ID | Descrição | Resolução |
 |----|-----------|-----------|
-| — | — | — |
+| P10 (antigo) | Timeouts de permissão do terminal na sessão anterior | Obsoleto: os comandos agora rodam normalmente |
+| Lint/typecheck | `tsconfig.test.json` herdava `exclude` de `tests/`, então testes não eram checados | Corrigido na retomada (exclude sobrescrito) |
