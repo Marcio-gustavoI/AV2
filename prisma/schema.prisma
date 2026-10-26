@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== ENUMS =====================
+
+enum Papel {
+  ADMIN
+  OPERADOR_CADASTRO
+  GESTOR_ALMOXARIFADO
+  AUDITOR
+}
+
+enum EstadoFisico {
+  SUCATA    // 0 - pior
+  RUIM      // 1
+  REGULAR   // 2
+  BOM       // 3
+  EXCELENTE // 4 - melhor
+}
+
+enum StatusEquipamento {
+  RECEBIDO
+  EM_TRIAGEM
+  TRIADO
+  EM_DESMONTE
+  DESMONTADO
+  DESTINADO
+}
+
+enum TipoEquipamento {
+  DESKTOP
+  NOTEBOOK
+  MONITOR
+  SERVIDOR
+  PERIFERICO
+  REDE
+  OUTRO
+}
+
+enum ClassificacaoDestino {
+  REUTILIZACAO
+  RECICLAGEM
+  DESCARTE_SEGURO
+}
+
+// ===================== MODELS =====================
+
+model Usuario {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  senhaHash  String
+  papel      Papel
+  ativo      Boolean  @default(true)
+  versao     Int      @default(1)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  movimentacoes Movimentacao[]
+  auditorias    Auditoria[]
+
+  @@map("usuarios")
+}
+
+model Parametro {
+  chave       String   @id
+  valor       Decimal  @db.Decimal(18, 6)
+  versao      Int      @default(1)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@map("parametros")
+}
+
+model Organizacao {
+  id        String   @id @default(uuid())
+  codigo    String   @unique
+  cnpj      String   @unique @db.VarChar(14)
+  nome      String
+  versao    Int      @default(1)
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  contrato  Contrato?
+  lotes     Lote[]
+
+  @@index([criadoEm])
+  @@map("organizacoes")
+}
+
+model Contrato {
+  id            String    @id @default(uuid())
+  organizacaoId String    @unique @map("organizacao_id")
+  numero        String    @unique
+  clausulas     Json?
+  inicio        DateTime  @db.Date
+  fim           DateTime? @db.Date
+  versao        Int       @default(1)
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id])
+
+  @@map("contratos")
+}
+
+model Lote {
+  id            String   @id @default(uuid())
+  organizacaoId String   @map("organizacao_id")
+  notaFiscal    String   @map("nota_fiscal")
+  transportadora String
+  dataEntrada   DateTime @db.Date @map("data_entrada")
+  versao        Int      @default(1)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  organizacao Organizacao  @relation(fields: [organizacaoId], references: [id])
+  equipamentos Equipamento[]
+
+  @@index([organizacaoId])
+  @@index([criadoEm])
+  @@map("lotes")
+}
+
+model Equipamento {
+  id                   String                @id @default(uuid())
+  loteId               String                @map("lote_id")
+  codigoBarrasInterno  String                @unique @map("codigo_barras_interno")
+  tipo                 TipoEquipamento
+  descricao            String
+  valorAquisicao       Decimal?              @db.Decimal(18, 2) @map("valor_aquisicao")
+  estadoFisico         EstadoFisico          @map("estado_fisico")
+  status               StatusEquipamento
+  triagemCompleta      Boolean               @default(false) @map("triagem_completa")
+  classificacaoDestino ClassificacaoDestino? @map("classificacao_destino")
+  versao               Int                   @default(1)
+  criadoEm            DateTime              @default(now()) @map("criado_em")
+
+  lote          Lote           @relation(fields: [loteId], references: [id])
+  movimentacoes Movimentacao[]
+
+  @@index([loteId])
+  @@index([status])
+  @@index([criadoEm])
+  @@map("equipamentos")
+}
+
+model Movimentacao {
+  id              String           @id @default(uuid())
+  equipamentoId   String           @map("equipamento_id")
+  statusAnterior  StatusEquipamento @map("status_anterior")
+  statusNovo      StatusEquipamento @map("status_novo")
+  estadoAnterior  EstadoFisico      @map("estado_anterior")
+  estadoNovo      EstadoFisico      @map("estado_novo")
+  justificativa   String?
+  usuarioId       String           @map("usuario_id")
+  versao          Int              @default(1)
+  criadoEm       DateTime         @default(now()) @map("criado_em")
+
+  equipamento Equipamento @relation(fields: [equipamentoId], references: [id])
+  usuario     Usuario     @relation(fields: [usuarioId], references: [id])
+
+  @@index([equipamentoId])
+  @@index([criadoEm])
+  @@map("movimentacoes")
+}
+
+model Auditoria {
+  id          String   @id @default(uuid())
+  usuarioId   String?  @map("usuario_id")
+  acao        String
+  entidade    String
+  entidadeId  String   @map("entidade_id")
+  antes       Json
+  depois      Json
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([entidade])
+  @@index([criadoEm])
+  @@map("auditorias")
+}

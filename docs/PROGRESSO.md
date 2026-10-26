@@ -2,35 +2,30 @@
 
 > Estado REAL, verificado por comandos. Última atualização: 2026-10-26.
 
-## Fase atual: FASE 2 – Banco (arquivos escritos, NADA executado ainda)
+## Fase atual: FASE 2 concluída, aguardando "APROVADO" (PARADA 2)
 
-### Fase 0 – Planejamento: ✅ aprovada (commit 3b01dff)
+### Fase 0: aprovada (commit 3b01dff)
 
-### Fase 1 – Base: ✅ verificada
-- `npm run typecheck` → exit 0 (agora inclui tests/, scripts/, prisma/)
-- `npm run lint` (`eslint .`) → exit 0
-- `npm test` → 1 arquivo, 2 testes passando (`/saude` 200 e 404 padronizado)
-- Servidor sobe com `npx tsx src/server.ts`; `GET /saude` → 200; rota inexistente → erro padronizado
-- NÃO demonstrado: graceful shutdown (ver PENDENCIAS P10)
+### Fase 1: verificada (commit c02da3a)
+- `npm run typecheck` e `npm run lint` com exit 0; `npm test` com 2 testes passando
+- NÃO demonstrado: graceful shutdown (PENDENCIAS P10)
 
-### Fase 2 – Banco: ⏳ em andamento
-- Escritos, mas **nunca executados**: `docker-compose.yml`, `prisma/schema.prisma`, 2 migrações SQL
-- Falta: subir Postgres, `prisma migrate deploy` em banco vazio, testar triggers, `prisma.$disconnect()` no shutdown, commit, PARADA 2
+### Fase 2: verificada
+- `prisma validate`: schema válido
+- `prisma migrate deploy` em banco vazio: 2 migrações aplicadas; `migrate status`: "Database schema is up to date!"
+- Trigger de Auditoria (saída real): UPDATE bloqueado; DELETE sem variável bloqueado; DELETE com `SET LOCAL greencode.limpeza='on'` de registro com 179 dias bloqueado; de 181 dias permitido; TRUNCATE bloqueado
+- CHECKs (erro real de cada um): parametros.valor < 0; contratos.fim < inicio; triagem_completa sem classificacao_destino; valor_aquisicao < 0; lote com data futura
+- Trigger de Movimentacao: sem mudança bloqueada; só mudança de estado físico aceita
+- Sequence `seq_codigo_barras` funcionando (nextval = 1)
 
-## Comandos validados
-```
-node v22.14.0 | npm 10.9.2 | Prisma 6.19.3 | TypeScript 6.0.3 | Vitest 5.0.5 | Fastify 5.12.7 | ESLint 10.13.0
-npm run typecheck ; npm run lint ; npm test
-```
+### Bug encontrado e corrigido na Fase 2
+O trigger da Auditoria deixava o DELETE passar quando a variável `greencode.limpeza` nunca tinha sido definida (`current_setting(..., true)` devolve NULL e `NULL <> 'on'` é NULL). Corrigido com `COALESCE(..., '')` na migração 2 e reaplicado em banco recriado.
 
-## Próximo passo exato
-1. `docker compose up -d postgres postgres_test` e `docker compose ps`
-2. `npx prisma migrate deploy` (banco vazio) e mostrar a saída
-3. Testar trigger da Auditoria (UPDATE/DELETE) via `docker exec`
-4. Commit `fase-2`, mostrar schema + SQL, aguardar "APROVADO"
+### Observação
+O CHECK `data_entrada <= CURRENT_DATE` usa a data do banco (UTC). Entre 21h e 24h em America/Sao_Paulo, o banco já vê o dia seguinte. A regra exata (R2, fuso `TZ_NEGOCIO`) fica no service.
 
-## Fases futuras
-Fases 3 a 11 pendentes (ver docs/ESPECIFICACAO.md seção 18).
+## Ambiente
+Os containers `greencode_db` (5432) e `greencode_db_test` (5433) foram subidos manualmente. No sandbox, `localhost:5432` e o pipe do Docker podem ficar inacessíveis; os comandos de banco rodaram fora do sandbox.
 
-## BLOQUEIO (2026-10-26)
-Docker CLI existe, mas o daemon (pipe dockerDesktopLinuxEngine) nao esta disponivel; Docker Desktop iniciado via Start-Process nao ficou em execucao. psql ausente. Migracoes e triggers NAO foram executados. Retomar em: docker compose up -d postgres postgres_test.
+## Próximo passo
+Após "APROVADO": Fase 3 (domínio: enums, erros, validadores, fábricas, regras de transição, Relogio) com testes unitários.
