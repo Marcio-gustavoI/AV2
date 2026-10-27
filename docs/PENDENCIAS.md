@@ -91,3 +91,17 @@ Nomes de classes/enums/campos são suposições baseadas na especificação. UML
 |----|-----------|-----------|
 | P10 (antigo) | Timeouts de permissão do terminal na sessão anterior | Obsoleto: os comandos agora rodam normalmente |
 | Lint/typecheck | `tsconfig.test.json` herdava `exclude` de `tests/`, então testes não eram checados | Corrigido na retomada (exclude sobrescrito) |
+
+---
+
+## P12 — Fase 10: teste do trigger da Auditoria com a variável NUNCA definida
+
+O bug D-17 (`NULL <> 'on'`) só aparece quando a variável `greencode.limpeza` nunca foi definida na sessão. O teste automatizado deve cobrir os três estados: nunca definida, `off` e `on`. **Pendente (Fase 10).**
+
+## P13 — Limpeza dos testes de integração (definido na Fase 4)
+
+O trigger da Auditoria bloqueia DELETE de registros com menos de 180 dias e TRUNCATE. **Decisão:** helper de teste `limparBanco` que, em uma transação, executa `SET LOCAL session_replication_role = replica` (desabilita os triggers comuns, exige superusuário; o usuário do container Docker é superusuário) e depois `TRUNCATE` das tabelas e `ALTER SEQUENCE seq_codigo_barras RESTART`. O helper recusa rodar se `DATABASE_URL` não contiver `_test`. Alternativa descartada: recriar o schema a cada teste (lento).
+
+## P14 — Fase 6: terceira migração (código de barras imutável)
+
+Criar a migração 3 com trigger que bloqueia UPDATE de `equipamentos.codigo_barras_interno` (R6: imutável), com teste. **Pendente (Fase 6).**

@@ -25,7 +25,8 @@
     "db:studio": "prisma studio",
     "criar-admin": "tsx scripts/criar-admin.ts",
     "jornada": "tsx scripts/jornada.ts",
-    "limpar-auditoria": "tsx scripts/limpar-auditoria.ts"
+    "limpar-auditoria": "tsx scripts/limpar-auditoria.ts",
+    "verificar": "npm run typecheck && npm run lint && npm test"
   },
   "keywords": [
     "logistica-reversa",
