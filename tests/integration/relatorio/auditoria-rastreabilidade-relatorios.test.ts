@@ -263,4 +263,29 @@ describe('Integração Fase 7: Auditoria, Rastreabilidade e Relatórios (Resumo 
       expect(negFin.statusCode).toBe(403);
     }
   });
+
+  it('matriz de permissões: GESTOR_ALMOXARIFADO e OPERADOR_CADASTRO são negados (403) em /relatorios e /auditoria', async () => {
+    for (const papel of [Papel.GESTOR_ALMOXARIFADO, Papel.OPERADOR_CADASTRO]) {
+      const resResumo = await app.inject({
+        method: 'GET',
+        url: '/api/v1/relatorios/resumo',
+        headers: gerarCabecalhoAuth(app, papel),
+      });
+      expect(resResumo.statusCode).toBe(403);
+
+      const resFinanceiro = await app.inject({
+        method: 'GET',
+        url: '/api/v1/relatorios/financeiro',
+        headers: gerarCabecalhoAuth(app, papel),
+      });
+      expect(resFinanceiro.statusCode).toBe(403);
+
+      const resAuditoria = await app.inject({
+        method: 'GET',
+        url: '/api/v1/auditoria',
+        headers: gerarCabecalhoAuth(app, papel),
+      });
+      expect(resAuditoria.statusCode).toBe(403);
+    }
+  });
 });

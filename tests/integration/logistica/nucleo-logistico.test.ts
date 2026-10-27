@@ -275,6 +275,94 @@ describe('Integração Fase 6: Núcleo Logístico (Lote, Equipamento, Triagem, M
     expect(transicaoInvalida.statusCode).toBe(422);
   });
 
+  it('rejeita pular etapa (R5: EM_TRIAGEM -> DESTINADO = 422) e desmonte sem triagem (R3: EM_DESMONTE sem triagemCompleta = 422) pela API', async () => {
+    const resLote = await app.inject({
+      method: 'POST',
+      url: '/api/v1/lotes',
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        orgCodigo: 'BR001',
+        notaFiscal: 'NF-R3-R5',
+        transportadora: 'Transp R3R5',
+        dataEntrada: hojeStr,
+        equipamentos: [
+          {
+            tipo: TipoEquipamento.NOTEBOOK,
+            descricao: 'Notebook Teste R3 e R5',
+            estadoFisico: EstadoFisico.EXCELENTE,
+          },
+        ],
+      },
+    });
+    expect(resLote.statusCode).toBe(201);
+    const eqId = resLote.json().equipamentos[0].id as string;
+
+    // 1. Tentar ir direto de RECEBIDO para EM_DESMONTE (sem triagem) -> 422
+    const desmonteDeRecebido = await app.inject({
+      method: 'POST',
+      url: `/api/v1/equipamentos/${eqId}/movimentacoes`,
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        versao: 1,
+        statusNovo: StatusEquipamento.EM_DESMONTE,
+      },
+    });
+    expect(desmonteDeRecebido.statusCode).toBe(422);
+
+    // 2. Avança legalmente para EM_TRIAGEM -> 200
+    const paraEmTriagem = await app.inject({
+      method: 'POST',
+      url: `/api/v1/equipamentos/${eqId}/movimentacoes`,
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        versao: 1,
+        statusNovo: StatusEquipamento.EM_TRIAGEM,
+      },
+    });
+    expect(paraEmTriagem.statusCode).toBe(200);
+
+    // 3. Tentar desmonte sem triagem concluída (EM_TRIAGEM -> EM_DESMONTE com triagemCompleta=false) -> 422 (R3/R5)
+    const desmonteSemTriagem = await app.inject({
+      method: 'POST',
+      url: `/api/v1/equipamentos/${eqId}/movimentacoes`,
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        versao: 2,
+        statusNovo: StatusEquipamento.EM_DESMONTE,
+      },
+    });
+    expect(desmonteSemTriagem.statusCode).toBe(422);
+
+    // 4. Tentar pular de EM_TRIAGEM direto para DESTINADO -> 422 (R5)
+    const pularEmTriagemParaDestinado = await app.inject({
+      method: 'POST',
+      url: `/api/v1/equipamentos/${eqId}/movimentacoes`,
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        versao: 2,
+        statusNovo: StatusEquipamento.DESTINADO,
+      },
+    });
+    expect(pularEmTriagemParaDestinado.statusCode).toBe(422);
+  });
+
+  it('nega OPERADOR_CADASTRO ao tentar criar lote (POST /api/v1/lotes -> 403)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/lotes',
+      headers: gerarCabecalhoAuth(app, Papel.OPERADOR_CADASTRO),
+      payload: {
+        orgCodigo: 'BR001',
+        notaFiscal: 'NF-OP-NEGADO',
+        transportadora: 'Transp',
+        dataEntrada: hojeStr,
+        equipamentos: [],
+      },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().erro).toBe('SEM_PERMISSAO');
+  });
+
   it('teste obrigatório (a): dois updates concorrentes com a mesma versao via Promise.all -> um 200 e um 409', async () => {
     const resLote = await app.inject({
       method: 'POST',
