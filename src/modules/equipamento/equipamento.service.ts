@@ -29,6 +29,7 @@ import type { AtorOperacao } from '../organizacao/organizacao.service.js';
 import type {
   EntidadeEquipamento,
   EntidadeEquipamentoDetalhe,
+  EntidadeRastreabilidadeEquipamento,
   EquipamentoRepository,
 } from './equipamento.repository.js';
 
@@ -66,9 +67,10 @@ const PAPEIS_LEITURA: readonly Papel[] = [
 ];
 
 /**
- * EquipamentoService (A1-04, A1-11, A1-14, A1-15, A2-02, A2-13, A2-14, R6, R7, R9, R11):
+ * EquipamentoService (A1-04, A1-11, A1-14, A1-15, A2-02, A2-11, A2-13, A2-14, R6, R7, R9, R11):
  * - Independente de Fastify e Prisma.
- * - Gerencia cadastro avulso em lote existente (R6, R11) e triagem atômica (R9, R7, R4).
+ * - Gerencia cadastro avulso em lote existente (R6, R11), triagem atômica (R9, R7, R4)
+ *   e consulta de rastreabilidade completa sem N+1.
  */
 export class EquipamentoService {
   private readonly movimentacaoFactory = new MovimentacaoFactory();
@@ -191,11 +193,6 @@ export class EquipamentoService {
     });
   }
 
-  /**
-   * R9: `POST /equipamentos/:id/triagem`
-   * Exige status EM_TRIAGEM, define `triagemCompleta = true`, `classificacaoDestino`,
-   * move para `TRIADO` e grava `Movimentacao` + `Auditoria` na mesma `$transaction` (R7).
-   */
   async realizarTriagem(
     ator: AtorOperacao,
     input: RealizarTriagemInput,
@@ -295,6 +292,18 @@ export class EquipamentoService {
       throw new ErroNaoEncontrado(`Equipamento ${id} não encontrado.`);
     }
     return eq;
+  }
+
+  async obterRastreabilidade(
+    ator: AtorOperacao,
+    id: string,
+  ): Promise<EntidadeRastreabilidadeEquipamento> {
+    this.verificarPermissaoLeitura(ator);
+    const rastro = await this.equipamentoRepo.buscarRastreabilidadePorId(id);
+    if (!rastro) {
+      throw new ErroNaoEncontrado(`Equipamento ${id} não encontrado.`);
+    }
+    return rastro;
   }
 
   async listar(

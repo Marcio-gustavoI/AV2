@@ -20,7 +20,6 @@ describe('ValidadorCnpj (R1 / A1-12)', () => {
   });
 
   it('aceita CNPJ alfanumérico válido (IN RFB 2.229/2024 - ASCII - 48)', () => {
-    // Exemplo oficial SERPRO: 12.ABC.345/01DE-35 -> DV = 35
     expect(validador.validar('12.ABC.345/01DE-35').valido).toBe(true);
     expect(validador.validar('12abc34501de35').valido).toBe(true);
   });
@@ -38,6 +37,7 @@ describe('ValidadorCnpj (R1 / A1-12)', () => {
       '11.111.111/1111-11',
       '22222222222222',
       '99999999999999',
+      'AAAAAAAAAAAAAA',
     ]) {
       const res = validador.validar(seq);
       expect(res.valido).toBe(false);
@@ -45,9 +45,14 @@ describe('ValidadorCnpj (R1 / A1-12)', () => {
     }
   });
 
-  it('rejeita tamanho diferente de 14 ou letras nos dígitos verificadores', () => {
+  it('rejeita CNPJ com tamanho errado (menor ou maior que 14 caracteres)', () => {
     expect(validador.validar('1234567890123').valido).toBe(false);
     expect(validador.validar('123456789012345').valido).toBe(false);
+    expect(validador.validar('').valido).toBe(false);
+  });
+
+  it('rejeita letras nos dois últimos dígitos verificadores', () => {
     expect(validador.validar('12ABC34501DEAB').valido).toBe(false);
+    expect(validador.validar('1122233300018A').valido).toBe(false);
   });
 });

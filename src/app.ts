@@ -8,10 +8,12 @@ import { env } from './config/env.js';
 import { type Relogio, RelogioReal } from './domain/index.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
+import { registrarRotasAuditoria } from './modules/auditoria/auditoria.controller.js';
 import {
   PrismaAuditoriaRepository,
   PrismaGerenciadorTransacao,
 } from './modules/auditoria/auditoria.repository.js';
+import { AuditoriaService } from './modules/auditoria/auditoria.service.js';
 import { registrarRotasAuth } from './modules/auth/auth.controller.js';
 import { AuthService } from './modules/auth/auth.service.js';
 import { registrarRotasContrato } from './modules/contrato/contrato.controller.js';
@@ -32,14 +34,19 @@ import { OrganizacaoService } from './modules/organizacao/organizacao.service.js
 import { registrarRotasParametro } from './modules/parametro/parametro.controller.js';
 import { PrismaParametroRepository } from './modules/parametro/parametro.repository.js';
 import { ParametroService } from './modules/parametro/parametro.service.js';
+import { registrarRotasRelatorio } from './modules/relatorio/relatorio.controller.js';
+import { PrismaRelatorioRepository } from './modules/relatorio/relatorio.repository.js';
+import { RelatorioService } from './modules/relatorio/relatorio.service.js';
 import { registrarRotasUsuario } from './modules/usuario/usuario.controller.js';
 import { PrismaUsuarioRepository } from './modules/usuario/usuario.repository.js';
 import { UsuarioService } from './modules/usuario/usuario.service.js';
 import { registrarHookAutenticacao } from './plugins/auth.js';
 import { registrarErrorHandler } from './plugins/error-handler.js';
+import { registrarSwagger } from './plugins/swagger.js';
 
 export interface OpcoesBuildApp {
   relogio?: Relogio | undefined;
+  corsOrigens?: string[] | undefined;
 }
 
 export async function buildApp(opcoes?: OpcoesBuildApp) {
@@ -75,9 +82,10 @@ export async function buildApp(opcoes?: OpcoesBuildApp) {
     contentSecurityPolicy: false, // desabilitado para o Swagger
   });
 
-  // CORS configurável por env
+  // CORS configurável por env (A2-20)
+  const origensPermitidas = opcoes?.corsOrigens ?? env.CORS_ORIGENS;
   await app.register(cors, {
-    origin: env.CORS_ORIGENS.length > 0 ? env.CORS_ORIGENS : false,
+    origin: origensPermitidas.length > 0 ? origensPermitidas : false,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
@@ -95,6 +103,9 @@ export async function buildApp(opcoes?: OpcoesBuildApp) {
     },
   });
 
+  // Documentação OpenAPI / Swagger em /docs
+  await registrarSwagger(app);
+
   // Error handler e not found
   registrarErrorHandler(app);
 
@@ -108,6 +119,7 @@ export async function buildApp(opcoes?: OpcoesBuildApp) {
       schema: {
         tags: ['Sistema'],
         summary: 'Verifica saúde do servidor',
+        security: [],
         response: {
           200: {
             type: 'object',
@@ -140,6 +152,7 @@ export async function buildApp(opcoes?: OpcoesBuildApp) {
   const loteRepo = new PrismaLoteRepository(prisma);
   const equipamentoRepo = new PrismaEquipamentoRepository(prisma);
   const movimentacaoRepo = new PrismaMovimentacaoRepository(prisma);
+  const relatorioRepo = new PrismaRelatorioRepository(prisma);
 
   const authService = new AuthService(
     usuarioRepo,
@@ -195,6 +208,8 @@ export async function buildApp(opcoes?: OpcoesBuildApp) {
     auditoriaRepo,
     transacao,
   );
+  const auditoriaService = new AuditoriaService(auditoriaRepo);
+  const relatorioService = new RelatorioService(relatorioRepo, parametroRepo);
 
   // Registro das rotas /api/v1
   await app.register(
@@ -207,6 +222,8 @@ export async function buildApp(opcoes?: OpcoesBuildApp) {
       registrarRotasLote(api, loteService);
       registrarRotasEquipamento(api, equipamentoService);
       registrarRotasMovimentacao(api, movimentacaoService);
+      registrarRotasRelatorio(api, relatorioService);
+      registrarRotasAuditoria(api, auditoriaService);
     },
     { prefix: '/api/v1' },
   );

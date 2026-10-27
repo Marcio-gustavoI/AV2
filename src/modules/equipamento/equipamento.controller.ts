@@ -14,6 +14,7 @@ import {
   EquipamentoResponseSchema,
   ListaPaginadaEquipamentosResponseSchema,
   ListarEquipamentosQuerySchema,
+  RastreabilidadeEquipamentoResponseSchema,
   RealizarTriagemBodySchema,
 } from './equipamento.schemas.js';
 
@@ -137,6 +138,49 @@ export function registrarRotasEquipamento(
       const ator = obterUsuarioRequisicao(request);
       const eq = await equipamentoService.buscarPorId(ator, request.params.id);
       return reply.status(200).send(serializarEquipamentoDetalhe(eq));
+    },
+  );
+
+  servidor.get(
+    '/equipamentos/:id/rastreabilidade',
+    {
+      preHandler: [exigirPapel(papeisLeitura)],
+      schema: {
+        tags: ['Equipamentos'],
+        summary: 'Retorna rastreabilidade completa do equipamento (lote, organização e linha do tempo cronológica de movimentações com usuário responsável)',
+        params: EquipamentoParamsSchema,
+        response: {
+          200: RastreabilidadeEquipamentoResponseSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const ator = obterUsuarioRequisicao(request);
+      const rastro = await equipamentoService.obterRastreabilidade(ator, request.params.id);
+      return reply.status(200).send({
+        equipamento: serializarEquipamento(rastro.equipamento),
+        lote: {
+          id: rastro.lote.id,
+          organizacaoId: rastro.lote.organizacaoId,
+          notaFiscal: rastro.lote.notaFiscal,
+          transportadora: rastro.lote.transportadora,
+          dataEntrada: rastro.lote.dataEntrada.toISOString().slice(0, 10),
+        },
+        organizacao: rastro.organizacao,
+        movimentacoes: rastro.movimentacoes.map((m) => ({
+          id: m.id,
+          equipamentoId: m.equipamentoId,
+          statusAnterior: m.statusAnterior,
+          statusNovo: m.statusNovo,
+          estadoAnterior: m.estadoAnterior,
+          estadoNovo: m.estadoNovo,
+          justificativa: m.justificativa,
+          usuarioId: m.usuarioId,
+          versao: m.versao,
+          criadoEm: m.criadoEm.toISOString(),
+          usuario: m.usuario,
+        })),
+      });
     },
   );
 

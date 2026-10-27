@@ -2,11 +2,12 @@ import 'dotenv/config';
 import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
+import { prisma } from './lib/prisma.js';
 
 async function start(): Promise<void> {
   const app = await buildApp();
 
-  // Graceful shutdown
+  // Graceful shutdown (A2-05)
   let isShuttingDown = false;
 
   async function shutdown(signal: string): Promise<void> {
@@ -24,7 +25,8 @@ async function start(): Promise<void> {
 
     try {
       await app.close();
-      logger.info('Servidor encerrado com sucesso.');
+      await prisma.$disconnect();
+      logger.info('Servidor e conexões encerrados com sucesso.');
       clearTimeout(timeout);
       process.exit(0);
     } catch (err) {
@@ -36,15 +38,24 @@ async function start(): Promise<void> {
 
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
-  // SIGBREAK disponível no Windows
   if (process.platform === 'win32') {
     process.on('SIGBREAK', () => void shutdown('SIGBREAK'));
   }
+
+  // Suporte adicional para sinal enviado via IPC em testes automatizados no Windows
+  process.on('message', (msg) => {
+    if (msg === 'SIGINT' || msg === 'SIGTERM') {
+      void shutdown(msg);
+    }
+  });
 
   try {
     await app.listen({ port: env.PORT, host: env.HOST });
     logger.info(`🚀 greencode rodando em http://${env.HOST}:${env.PORT}`);
     logger.info(`📖 Documentação: http://${env.HOST}:${env.PORT}/docs`);
+    if (typeof process.send === 'function') {
+      process.send('PRONTO');
+    }
   } catch (err) {
     logger.fatal({ err }, 'Falha ao iniciar o servidor');
     process.exit(1);

@@ -3,10 +3,12 @@ import { Decimal } from 'decimal.js';
 import {
   type ClassificacaoDestino,
   type EstadoFisico,
+  type Papel,
   StatusEquipamento,
   type TipoEquipamento,
   formatarCodigoBarras,
 } from '../../domain/index.js';
+import type { EntidadeMovimentacaoComUsuario } from '../movimentacao/movimentacao.repository.js';
 
 export interface EntidadeEquipamento {
   id: string;
@@ -37,6 +39,24 @@ export interface EntidadeEquipamentoDetalhe extends EntidadeEquipamento {
       nome: string;
     };
   };
+}
+
+export interface EntidadeRastreabilidadeEquipamento {
+  equipamento: EntidadeEquipamento;
+  lote: {
+    id: string;
+    organizacaoId: string;
+    notaFiscal: string;
+    transportadora: string;
+    dataEntrada: Date;
+  };
+  organizacao: {
+    id: string;
+    codigo: string;
+    cnpj: string;
+    nome: string;
+  };
+  movimentacoes: EntidadeMovimentacaoComUsuario[];
 }
 
 export interface CriarEquipamentoRepoInput {
@@ -75,6 +95,10 @@ export interface EquipamentoRepository {
   criar(dados: CriarEquipamentoRepoInput, tx?: unknown): Promise<EntidadeEquipamento>;
   buscarPorId(id: string, tx?: unknown): Promise<EntidadeEquipamento | null>;
   buscarDetalhePorId(id: string, tx?: unknown): Promise<EntidadeEquipamentoDetalhe | null>;
+  buscarRastreabilidadePorId(
+    id: string,
+    tx?: unknown,
+  ): Promise<EntidadeRastreabilidadeEquipamento | null>;
   buscarPorCodigoBarras(
     codigoBarrasInterno: string,
     tx?: unknown,
@@ -214,6 +238,93 @@ export class PrismaEquipamentoRepository implements EquipamentoRepository {
     };
   }
 
+  /**
+   * Consulta única com `select`/`include` aninhado (sem N+1, A2-11):
+   * equipamento -> lote -> organizacao e movimentacoes (ordenadas cronologicamente) -> usuario.
+   */
+  async buscarRastreabilidadePorId(
+    id: string,
+    tx?: unknown,
+  ): Promise<EntidadeRastreabilidadeEquipamento | null> {
+    const db = this.client(tx);
+    const encontrado = await db.equipamento.findUnique({
+      where: { id },
+      select: {
+        ...SELECT_EQUIPAMENTO,
+        lote: {
+          select: {
+            id: true,
+            organizacaoId: true,
+            notaFiscal: true,
+            transportadora: true,
+            dataEntrada: true,
+            organizacao: {
+              select: {
+                id: true,
+                codigo: true,
+                cnpj: true,
+                nome: true,
+              },
+            },
+          },
+        },
+        movimentacoes: {
+          orderBy: [{ criadoEm: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            equipamentoId: true,
+            statusAnterior: true,
+            statusNovo: true,
+            estadoAnterior: true,
+            estadoNovo: true,
+            justificativa: true,
+            usuarioId: true,
+            versao: true,
+            criadoEm: true,
+            usuario: {
+              select: {
+                id: true,
+                email: true,
+                papel: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!encontrado) return null;
+
+    return {
+      equipamento: mapearEquipamento(encontrado),
+      lote: {
+        id: encontrado.lote.id,
+        organizacaoId: encontrado.lote.organizacaoId,
+        notaFiscal: encontrado.lote.notaFiscal,
+        transportadora: encontrado.lote.transportadora,
+        dataEntrada: encontrado.lote.dataEntrada,
+      },
+      organizacao: encontrado.lote.organizacao,
+      movimentacoes: encontrado.movimentacoes.map((m) => ({
+        id: m.id,
+        equipamentoId: m.equipamentoId,
+        statusAnterior: m.statusAnterior as StatusEquipamento,
+        statusNovo: m.statusNovo as StatusEquipamento,
+        estadoAnterior: m.estadoAnterior as EstadoFisico,
+        estadoNovo: m.estadoNovo as EstadoFisico,
+        justificativa: m.justificativa,
+        usuarioId: m.usuarioId,
+        versao: m.versao,
+        criadoEm: m.criadoEm,
+        usuario: {
+          id: m.usuario.id,
+          email: m.usuario.email,
+          papel: m.usuario.papel as Papel,
+        },
+      })),
+    };
+  }
+
   async buscarPorCodigoBarras(
     codigoBarrasInterno: string,
     tx?: unknown,
@@ -290,6 +401,7 @@ export class PrismaEquipamentoRepository implements EquipamentoRepository {
 
 export class MemoriaEquipamentoRepository implements EquipamentoRepository {
   public readonly itens = new Map<string, EntidadeEquipamento>();
+  public movimentacoesRef?: EntidadeMovimentacaoComUsuario[];
   private sequencial = 0;
 
   async gerarProximoCodigoBarras(): Promise<string> {
@@ -342,6 +454,41 @@ export class MemoriaEquipamentoRepository implements EquipamentoRepository {
           nome: 'Org Memória',
         },
       },
+    };
+  }
+
+  async buscarRastreabilidadePorId(
+    id: string,
+  ): Promise<EntidadeRastreabilidadeEquipamento | null> {
+    const detalhe = await this.buscarDetalhePorId(id);
+    if (!detalhe) return null;
+    const movs = (this.movimentacoesRef ?? [])
+      .filter((m) => m.equipamentoId === id)
+      .sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime());
+    return {
+      equipamento: {
+        id: detalhe.id,
+        loteId: detalhe.loteId,
+        codigoBarrasInterno: detalhe.codigoBarrasInterno,
+        tipo: detalhe.tipo,
+        descricao: detalhe.descricao,
+        valorAquisicao: detalhe.valorAquisicao,
+        estadoFisico: detalhe.estadoFisico,
+        status: detalhe.status,
+        triagemCompleta: detalhe.triagemCompleta,
+        classificacaoDestino: detalhe.classificacaoDestino,
+        versao: detalhe.versao,
+        criadoEm: detalhe.criadoEm,
+      },
+      lote: {
+        id: detalhe.lote.id,
+        organizacaoId: detalhe.lote.organizacaoId,
+        notaFiscal: detalhe.lote.notaFiscal,
+        transportadora: detalhe.lote.transportadora,
+        dataEntrada: detalhe.lote.dataEntrada,
+      },
+      organizacao: detalhe.lote.organizacao,
+      movimentacoes: movs,
     };
   }
 

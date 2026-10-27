@@ -39,20 +39,20 @@ export class ValidadorCnpj extends Validador<string> {
       return;
     }
 
-    if (!/^[A-Z0-9]{12}[0-9]{2}$/.test(limpo)) {
-      erros.push({
-        campo: 'cnpj',
-        mensagem:
-          'CNPJ com formato inválido: as 12 primeiras posições aceitam letras (A-Z) e números (0-9) e os 2 dígitos verificadores devem ser numéricos.',
-      });
-      return;
-    }
-
     const primeiroChar = limpo[0];
     if (primeiroChar !== undefined && limpo.split('').every((c) => c === primeiroChar)) {
       erros.push({
         campo: 'cnpj',
         mensagem: 'CNPJ inválido: sequência de caracteres repetidos não é permitida.',
+      });
+      return;
+    }
+
+    if (!/^[A-Z0-9]{12}[0-9]{2}$/.test(limpo)) {
+      erros.push({
+        campo: 'cnpj',
+        mensagem:
+          'CNPJ com formato inválido: as 12 primeiras posições aceitam letras (A-Z) e números (0-9) e os 2 dígitos verificadores devem ser numéricos.',
       });
       return;
     }

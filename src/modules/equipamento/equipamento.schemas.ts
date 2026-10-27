@@ -2,6 +2,7 @@ import { Type, type Static } from '@sinclair/typebox';
 import {
   ClassificacaoDestino,
   EstadoFisico,
+  Papel,
   StatusEquipamento,
   TipoEquipamento,
 } from '../../domain/index.js';
@@ -37,6 +38,13 @@ export const ClassificacaoDestinoSchema = Type.Union([
   Type.Literal(ClassificacaoDestino.REUTILIZACAO),
   Type.Literal(ClassificacaoDestino.RECICLAGEM),
   Type.Literal(ClassificacaoDestino.DESCARTE_SEGURO),
+]);
+
+const PapelSchema = Type.Union([
+  Type.Literal(Papel.ADMIN),
+  Type.Literal(Papel.OPERADOR_CADASTRO),
+  Type.Literal(Papel.GESTOR_ALMOXARIFADO),
+  Type.Literal(Papel.AUDITOR),
 ]);
 
 export const EquipamentoParamsSchema = Type.Object({
@@ -138,6 +146,42 @@ export const EquipamentoDetalheResponseSchema = Type.Object({
       nome: Type.String(),
     }),
   }),
+});
+
+export const RastreabilidadeEquipamentoResponseSchema = Type.Object({
+  equipamento: EquipamentoResponseSchema,
+  lote: Type.Object({
+    id: Type.String({ format: 'uuid' }),
+    organizacaoId: Type.String({ format: 'uuid' }),
+    notaFiscal: Type.String(),
+    transportadora: Type.String(),
+    dataEntrada: Type.String(),
+  }),
+  organizacao: Type.Object({
+    id: Type.String({ format: 'uuid' }),
+    codigo: Type.String(),
+    cnpj: Type.String(),
+    nome: Type.String(),
+  }),
+  movimentacoes: Type.Array(
+    Type.Object({
+      id: Type.String({ format: 'uuid' }),
+      equipamentoId: Type.String({ format: 'uuid' }),
+      statusAnterior: StatusEquipamentoSchema,
+      statusNovo: StatusEquipamentoSchema,
+      estadoAnterior: EstadoFisicoSchema,
+      estadoNovo: EstadoFisicoSchema,
+      justificativa: Type.Union([Type.String(), Type.Null()]),
+      usuarioId: Type.String({ format: 'uuid' }),
+      versao: Type.Integer(),
+      criadoEm: Type.String({ format: 'date-time' }),
+      usuario: Type.Object({
+        id: Type.String({ format: 'uuid' }),
+        email: Type.String(),
+        papel: PapelSchema,
+      }),
+    }),
+  ),
 });
 
 export const ListaPaginadaEquipamentosResponseSchema = Type.Object({
