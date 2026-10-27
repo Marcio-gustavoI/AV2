@@ -1,9 +1,22 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import '@fastify/jwt';
 import { ErroNaoAutenticado, ErroSemPermissao, Papel } from '../domain/index.js';
 
 export interface UsuarioAutenticado {
   id: string;
   papel: Papel;
+}
+
+export interface PayloadTokenJwt {
+  sub: string;
+  papel: Papel;
+}
+
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: PayloadTokenJwt;
+    user: PayloadTokenJwt;
+  }
 }
 
 declare module 'fastify' {
@@ -24,8 +37,8 @@ function rotaPublica(url: string): boolean {
 }
 
 /**
- * Hook de autenticação e helper `exigirPapel` (Fase 4: suporta cabeçalho de teste
- * apenas em NODE_ENV=test; na Fase 5 será conectado ao @fastify/jwt real).
+ * Hook global de autenticação (Fase 5, A2-12):
+ * Valida o token Bearer via `@fastify/jwt` e injeta `request.usuario = { id, papel }`.
  */
 export function registrarHookAutenticacao(app: FastifyInstance): void {
   app.addHook('onRequest', async (request: FastifyRequest) => {
@@ -33,24 +46,27 @@ export function registrarHookAutenticacao(app: FastifyInstance): void {
       return;
     }
 
-    // Modo de teste (Fase 4): aceita cabeçalhos x-test-user-id e x-test-user-role
-    if (process.env['NODE_ENV'] === 'test') {
-      const testRole = request.headers['x-test-user-role'];
-      const testUserId = request.headers['x-test-user-id'];
-      if (typeof testRole === 'string' && PAPEIS_VALIDOS.has(testRole)) {
-        request.usuario = {
-          id:
-            typeof testUserId === 'string' && testUserId.trim() !== ''
-              ? testUserId.trim()
-              : '00000000-0000-0000-0000-000000000001',
-          papel: testRole as Papel,
-        };
-        return;
+    try {
+      const decodificado = await request.jwtVerify<PayloadTokenJwt>();
+      if (
+        !decodificado ||
+        typeof decodificado.sub !== 'string' ||
+        decodificado.sub.trim() === '' ||
+        typeof decodificado.papel !== 'string' ||
+        !PAPEIS_VALIDOS.has(decodificado.papel)
+      ) {
+        throw new ErroNaoAutenticado('Token JWT malformado.');
       }
-    }
 
-    if (!request.usuario) {
-      throw new ErroNaoAutenticado();
+      request.usuario = {
+        id: decodificado.sub,
+        papel: decodificado.papel as Papel,
+      };
+    } catch (err) {
+      if (err instanceof ErroNaoAutenticado) {
+        throw err;
+      }
+      throw new ErroNaoAutenticado('Token de autenticação ausente, inválido ou expirado.');
     }
   });
 }

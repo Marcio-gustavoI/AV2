@@ -44,3 +44,11 @@ Após "APROVADO": Fase 3 (domínio: enums, erros, validadores, fábricas, regras
 - Rotas e JSON Schema (TypeBox): `POST|GET /api/v1/organizacoes`, `GET|PATCH /api/v1/organizacoes/:id`, `POST|GET|PATCH /api/v1/organizacoes/:id/contrato`.
 - Helper de limpeza do banco de teste (`tests/helpers/banco.ts` com `SET LOCAL session_replication_role = 'replica'`) e script `scripts/preparar-banco-teste.ts`.
 - Testes: `tests/unit/organizacao/organizacao-contrato.service.test.ts` (10 testes) e `tests/integration/organizacao/organizacao-contrato.test.ts` (5 testes) — total 6 arquivos, 37 testes passando.
+
+
+### Fase 5 – Segurança (A1-01, A1-02, A1-05, A1-06, A1-07, A1-09, A1-19, A2-12, R12): ✅ concluída e validada
+- Módulos `usuario`, `auth` e `parametro`: repositórios (interface + memória + Prisma), services desacoplados, schemas TypeBox e controllers.
+- `AuthService`: comparação constante contra hash fictício quando o e-mail não existe, erro 401 idêntico para e-mail inexistente e senha incorreta, bloqueio de usuários inativos.
+- `@fastify/jwt` real no hook global `src/plugins/auth.ts` (substituindo o cabeçalho temporário da Fase 4), `@fastify/rate-limit` (5 tentativas/minuto por IP em `POST /api/v1/auth/login`), redação de `senha`, `senhaHash`, `token` e `authorization` no Pino (`src/lib/logger.ts`).
+- `scripts/criar-admin.ts`: provisionamento inicial via env ou terminal interativo, sem senha padrão.
+- Testes: `tests/unit/seguranca/usuario-auth-parametro.service.test.ts` (5 testes) e `tests/integration/seguranca/auth-usuarios-parametros.test.ts` (7 testes) — total 8 arquivos, 49 testes passando.

@@ -6,15 +6,9 @@ import { prisma } from '../../../src/lib/prisma.js';
 import {
   ID_USUARIO_TESTE_PADRAO,
   garantirUsuarioTesteNoBanco,
+  gerarCabecalhoAuth,
   limparBanco,
 } from '../../helpers/banco.js';
-
-function headersAutenticados(papel: Papel, userId: string = ID_USUARIO_TESTE_PADRAO) {
-  return {
-    'x-test-user-role': papel,
-    'x-test-user-id': userId,
-  };
-}
 
 describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato', () => {
   let app: FastifyInstance;
@@ -37,7 +31,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.OPERADOR_CADASTRO),
+      headers: gerarCabecalhoAuth(app, Papel.OPERADOR_CADASTRO),
       payload: {
         codigo: 'br001',
         cnpj: '11.222.333/0001-81',
@@ -62,7 +56,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const resInvalido = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         codigo: 'BR001',
         cnpj: '11.222.333/0001-82',
@@ -75,7 +69,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const resRepetido = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         codigo: 'BR002',
         cnpj: '11.111.111/1111-11',
@@ -87,7 +81,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         codigo: 'BR003',
         cnpj: '11.222.333/0001-81',
@@ -98,7 +92,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const resDuplicado = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         codigo: 'BR004',
         cnpj: '11222333000181',
@@ -113,7 +107,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const criacao = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         codigo: 'BR010',
         cnpj: '12.ABC.345/01DE-35',
@@ -125,7 +119,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const lista = await app.inject({
       method: 'GET',
       url: '/api/v1/organizacoes?pagina=1&tamanhoPagina=10',
-      headers: headersAutenticados(Papel.AUDITOR),
+      headers: gerarCabecalhoAuth(app, Papel.AUDITOR),
     });
     expect(lista.statusCode).toBe(200);
     expect(lista.json().dados).toHaveLength(1);
@@ -134,7 +128,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const patchOk = await app.inject({
       method: 'PATCH',
       url: `/api/v1/organizacoes/${org.id}`,
-      headers: headersAutenticados(Papel.OPERADOR_CADASTRO),
+      headers: gerarCabecalhoAuth(app, Papel.OPERADOR_CADASTRO),
       payload: {
         versao: 1,
         nome: 'Org Alfanumérica Atualizada',
@@ -146,7 +140,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const patchConflito = await app.inject({
       method: 'PATCH',
       url: `/api/v1/organizacoes/${org.id}`,
-      headers: headersAutenticados(Papel.OPERADOR_CADASTRO),
+      headers: gerarCabecalhoAuth(app, Papel.OPERADOR_CADASTRO),
       payload: {
         versao: 1,
         nome: 'Tentativa Com Versão Antiga',
@@ -160,7 +154,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const criacaoOrg = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         codigo: 'BR020',
         cnpj: '11222333000181',
@@ -172,7 +166,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const contratoInvalido = await app.inject({
       method: 'POST',
       url: `/api/v1/organizacoes/${orgId}/contrato`,
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         numero: 'CT-ERR',
         inicio: '2026-05-10',
@@ -184,7 +178,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const contratoCriado = await app.inject({
       method: 'POST',
       url: `/api/v1/organizacoes/${orgId}/contrato`,
-      headers: headersAutenticados(Papel.OPERADOR_CADASTRO),
+      headers: gerarCabecalhoAuth(app, Papel.OPERADOR_CADASTRO),
       payload: {
         numero: 'CT-2026-100',
         clausulas: { coletaMensalKg: 500 },
@@ -198,7 +192,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const getContrato = await app.inject({
       method: 'GET',
       url: `/api/v1/organizacoes/${orgId}/contrato`,
-      headers: headersAutenticados(Papel.GESTOR_ALMOXARIFADO),
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
     });
     expect(getContrato.statusCode).toBe(200);
     expect(getContrato.json().numero).toBe('CT-2026-100');
@@ -206,7 +200,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const getOrgDetalhe = await app.inject({
       method: 'GET',
       url: `/api/v1/organizacoes/${orgId}`,
-      headers: headersAutenticados(Papel.AUDITOR),
+      headers: gerarCabecalhoAuth(app, Papel.AUDITOR),
     });
     expect(getOrgDetalhe.statusCode).toBe(200);
     expect(getOrgDetalhe.json().contrato.numero).toBe('CT-2026-100');
@@ -214,7 +208,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const patchContrato = await app.inject({
       method: 'PATCH',
       url: `/api/v1/organizacoes/${orgId}/contrato`,
-      headers: headersAutenticados(Papel.ADMIN),
+      headers: gerarCabecalhoAuth(app, Papel.ADMIN),
       payload: {
         versao: 1,
         fim: '2027-12-31',
@@ -235,7 +229,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const auditorEscritaOrg = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.AUDITOR),
+      headers: gerarCabecalhoAuth(app, Papel.AUDITOR),
       payload: {
         codigo: 'BR999',
         cnpj: '11222333000181',
@@ -247,7 +241,7 @@ describe('Integração: /api/v1/organizacoes e /api/v1/organizacoes/:id/contrato
     const gestorEscritaOrg = await app.inject({
       method: 'POST',
       url: '/api/v1/organizacoes',
-      headers: headersAutenticados(Papel.GESTOR_ALMOXARIFADO),
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
       payload: {
         codigo: 'BR998',
         cnpj: '11222333000181',

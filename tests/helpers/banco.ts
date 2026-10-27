@@ -1,3 +1,4 @@
+import type { FastifyInstance } from 'fastify';
 import { Papel } from '../../src/domain/index.js';
 import { prisma } from '../../src/lib/prisma.js';
 
@@ -46,4 +47,19 @@ export async function garantirUsuarioTesteNoBanco(
     },
   });
   return { id, email, papel };
+}
+
+/**
+ * Gera cabeçalho HTTP Authorization com token JWT real assinado pela instância do Fastify.
+ */
+export function gerarCabecalhoAuth(
+  app: FastifyInstance,
+  papel: Papel,
+  userId: string = ID_USUARIO_TESTE_PADRAO,
+  expiresIn: string = '30m',
+): { authorization: string } {
+  const token = app.jwt.sign({ sub: userId, papel }, { expiresIn });
+  return {
+    authorization: `Bearer ${token}`,
+  };
 }
