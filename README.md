@@ -64,8 +64,8 @@ npm --version    # Deve exibir 10.x.x
 Execute os comandos abaixo no PowerShell dentro da pasta `greencode`:
 
 ```powershell
-# 1. Instalar dependências
-npm install
+# 1. Instalar dependências (use npm ci para instalação limpa a partir do lockfile, ou npm install)
+npm ci
 
 # 2. Criar arquivo .env a partir do modelo
 Copy-Item .env.example .env
@@ -73,20 +73,25 @@ Copy-Item .env.example .env
 # 3. Subir os containers PostgreSQL (desenvolvimento na porta 5432 e teste na porta 5433)
 docker compose up -d
 
-# 4. Confirmar que os containers estão healthy
+# 4. Aguardar ~20s e confirmar que ambos os containers estão healthy
 docker compose ps
 
-# 5. Aplicar as migrações versionadas (tabelas, CHECKs, SEQUENCE e triggers) no banco de desenvolvimento
-npm run db:migrate
+# 5. Gerar o Prisma Client a partir do schema
+npx prisma generate
 
-# 6. Popular banco com massa de dados idempotente de desenvolvimento
+# 6. Aplicar as migrações versionadas (tabelas, CHECKs, SEQUENCE e triggers) no banco de desenvolvimento
+npx prisma migrate deploy   # ou: npm run db:migrate
+
+# 7. Popular banco com massa de dados idempotente de desenvolvimento
 npm run db:seed
 
-# 7. Preparar o banco de testes (porta 5433) e rodar toda a suíte automatizada
+# 8. Preparar o banco de testes (porta 5433) e rodar typecheck, lint e toda a suíte automatizada
 npm run test:db:preparar
+npm run typecheck
+npm run lint
 npm test
 
-# 8. Subir o servidor em modo de desenvolvimento
+# 9. Subir o servidor em modo de desenvolvimento
 npm run dev
 ```
 
@@ -103,16 +108,18 @@ npm run jornada
 
 ```bash
 # 1. Instalar dependências
-npm install
+npm ci
 
 # 2. Criar arquivo .env a partir do modelo
 cp .env.example .env
 
-# 3. Subir os containers PostgreSQL (portas 5432 e 5433)
+# 3. Subir os containers PostgreSQL (portas 5432 e 5433) e aguardar ficarem healthy
 docker compose up -d
+docker compose ps
 
-# 4. Aplicar migrações e popular o seed
-npm run db:migrate
+# 4. Gerar o Prisma Client, aplicar migrações e popular o seed
+npx prisma generate
+npx prisma migrate deploy
 npm run db:seed
 
 # 5. Preparar o banco de testes e executar typecheck, lint e testes com cobertura
@@ -155,6 +162,7 @@ DATABASE_URL_TEST="postgresql://greencode:greencode@localhost:5432/greencode_tes
 3. Em seguida, rode normalmente:
 
 ```bash
+npx prisma generate
 npm run db:migrate
 npm run db:seed
 npm run test:db:preparar
