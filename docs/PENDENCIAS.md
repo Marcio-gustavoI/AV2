@@ -54,4 +54,4 @@
 | P11 | Rota `/docs` do Swagger | Implementada em `src/plugins/swagger.ts` e validada em `/docs` e `/docs/json` |
 | P12 | Teste automatizado do trigger da Auditoria com variável `greencode.limpeza` nunca definida | Implementado e validado em `tests/integration/acabamento/acabamento-fase8.test.ts` |
 | P13 | Limpeza dos testes de integração respeitando os triggers | Implementado em `tests/helpers/banco.ts` com `SET LOCAL session_replication_role = replica` restrito ao banco `_test` |
-| P14 | Terceira migração com trigger de imutabilidade de `codigo_barras_interno` (`R6`) | Implementada em `prisma/migrations/20261026195500_codigo_barras_imutavel/migration.sql` e testada em `tests/integration/logistica/nucleo-logistico.test.ts` |
+| P14 | Terceira migração com trigger de imutabilidade de `codigo_barras_interno` (`R6`) | Implementada em `prisma/migrations/20261022000002_codigo_barras_imutavel/migration.sql` e testada em `tests/integration/logistica/nucleo-logistico.test.ts` |

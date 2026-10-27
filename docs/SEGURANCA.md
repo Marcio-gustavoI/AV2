@@ -34,12 +34,12 @@ A autorização é aplicada em **defesa em profundidade**:
 ## 4. Auditoria Imutável e Política de Retenção (`A1-16`, `A1-24`, `D-07`, `D-17`)
 
 - **Gravação Transacional:** todo `POST`, `PUT` ou `PATCH` que altera estado grava um registro na tabela `auditorias` **dentro da mesma `$transaction`** da operação de negócio. Se a gravação da auditoria falhar, toda a transação sofre rollback.
-- **Proteção por Trigger no PostgreSQL:** a função `fn_proteger_auditoria` e os triggers `trg_proteger_auditoria_row` e `trg_proteger_auditoria_truncate` bloqueiam qualquer `UPDATE`, `TRUNCATE` e `DELETE` direto na tabela `auditorias`.
+- **Proteção por Trigger no PostgreSQL:** a função `fn_proteger_auditoria` e os triggers `trg_auditoria_imutavel` e `trg_auditoria_bloquear_truncate` bloqueiam qualquer `UPDATE`, `TRUNCATE` e `DELETE` direto na tabela `auditorias`.
 - **Exceção Controlada de Retenção (`npm run limpar-auditoria`):** o `DELETE` só é permitido pelo trigger quando:
   1. A variável de sessão `greencode.limpeza` foi definida como `'on'` na transação corrente (`SET LOCAL greencode.limpeza = 'on'`), tratada com `COALESCE(current_setting('greencode.limpeza', true), '')` para bloquear sessões onde a variável nunca foi definida; **e**
   2. O registro possui `criado_em < NOW() - INTERVAL '180 days'`.
 - **Imutabilidade de Movimentações e Códigos de Barras:**
-  - `trg_proteger_movimentacao` bloqueia `UPDATE` e `DELETE` na tabela `movimentacoes`.
+  - `trg_movimentacao_imutavel` bloqueia `UPDATE` e `DELETE` na tabela `movimentacoes`, e `trg_movimentacao_sem_mudanca` impede movimentações sem alteração de status ou estado físico.
   - `trg_equipamentos_codigo_barras_imutavel` bloqueia qualquer `UPDATE` na coluna `codigo_barras_interno` de `equipamentos` (`R6`).
 
 ---

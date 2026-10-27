@@ -395,7 +395,7 @@
 
 **Contexto:** Cada equipamento precisa de um identificador físico único e imutável no formato `GC-` + sequencial com zeros à esquerda.
 
-**Decisão:** Formato padronizado `^GC-\d{6,}$` (ex.: `GC-000001`), gerado via `SELECT nextval('seq_codigo_barras')` no PostgreSQL quando não enviado pelo cliente. Além do índice `UNIQUE`, a 3ª migração (`20261026195500_codigo_barras_imutavel`) criou o trigger `trg_equipamentos_codigo_barras_imutavel` que bloqueia qualquer tentativa de `UPDATE` em `codigo_barras_interno`.
+**Decisão:** Formato padronizado `^GC-\d{6,}$` (ex.: `GC-000001`), gerado via `SELECT nextval('seq_codigo_barras')` no PostgreSQL quando não enviado pelo cliente. Além do índice `UNIQUE`, a 3ª migração (`20261022000002_codigo_barras_imutavel`) criou o trigger `trg_equipamentos_codigo_barras_imutavel` que bloqueia qualquer tentativa de `UPDATE` em `codigo_barras_interno`.
 
 **Alternativas rejeitadas:** Incluir o ano no código (`GC-2026-000001`) ou gerar código via `MAX(id) + 1` em aplicação (vulnerável a condição de corrida sob concorrência).
 
