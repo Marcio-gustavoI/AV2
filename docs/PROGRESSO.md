@@ -52,3 +52,10 @@ Após "APROVADO": Fase 3 (domínio: enums, erros, validadores, fábricas, regras
 - `@fastify/jwt` real no hook global `src/plugins/auth.ts` (substituindo o cabeçalho temporário da Fase 4), `@fastify/rate-limit` (5 tentativas/minuto por IP em `POST /api/v1/auth/login`), redação de `senha`, `senhaHash`, `token` e `authorization` no Pino (`src/lib/logger.ts`).
 - `scripts/criar-admin.ts`: provisionamento inicial via env ou terminal interativo, sem senha padrão.
 - Testes: `tests/unit/seguranca/usuario-auth-parametro.service.test.ts` (5 testes) e `tests/integration/seguranca/auth-usuarios-parametros.test.ts` (7 testes) — total 8 arquivos, 49 testes passando.
+
+
+### Fase 6 – Núcleo Logístico (A1-04, A1-11, A1-13, A1-14, A1-15, A1-24, A2-09, A2-13, A2-14, R2–R7, R9–R11): ✅ concluída e validada
+- Migração 3 (`prisma/migrations/20261022000002_codigo_barras_imutavel/migration.sql`): trigger `trg_equipamentos_codigo_barras_imutavel` bloqueando UPDATE de `codigo_barras_interno` na tabela `equipamentos` (R6). Aplicada em `greencode` e `greencode_test`.
+- Módulos `lote`, `equipamento` e `movimentacao`: repositórios (interface + memória + Prisma com `select`/`include` intencionais e sequence `seq_codigo_barras`), services desacoplados usando `LoteFactory`, `MovimentacaoFactory` e `Relogio`, schemas TypeBox e controllers (`/api/v1/lotes`, `/api/v1/equipamentos`, `/api/v1/equipamentos/:id/triagem`, `/api/v1/equipamentos/:id/movimentacoes`).
+- Testes obrigatórios de concorrência e atomicidade (seção 11): (a) dois updates concorrentes com `Promise.all` -> um 200 e um 409; (b) falha injetada no meio da `$transaction` revertendo equipamento, movimentação e lote no banco; (c) lote com 1 equipamento inválido revertendo todo o lote.
+- Testes: `tests/unit/logistica/lote-equipamento-movimentacao.service.test.ts` (4 testes) e `tests/integration/logistica/nucleo-logistico.test.ts` (7 testes) — total 10 arquivos, 60 testes passando.

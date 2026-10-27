@@ -5,6 +5,7 @@ import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
+import { type Relogio, RelogioReal } from './domain/index.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 import {
@@ -16,6 +17,15 @@ import { AuthService } from './modules/auth/auth.service.js';
 import { registrarRotasContrato } from './modules/contrato/contrato.controller.js';
 import { PrismaContratoRepository } from './modules/contrato/contrato.repository.js';
 import { ContratoService } from './modules/contrato/contrato.service.js';
+import { registrarRotasEquipamento } from './modules/equipamento/equipamento.controller.js';
+import { PrismaEquipamentoRepository } from './modules/equipamento/equipamento.repository.js';
+import { EquipamentoService } from './modules/equipamento/equipamento.service.js';
+import { registrarRotasLote } from './modules/lote/lote.controller.js';
+import { PrismaLoteRepository } from './modules/lote/lote.repository.js';
+import { LoteService } from './modules/lote/lote.service.js';
+import { registrarRotasMovimentacao } from './modules/movimentacao/movimentacao.controller.js';
+import { PrismaMovimentacaoRepository } from './modules/movimentacao/movimentacao.repository.js';
+import { MovimentacaoService } from './modules/movimentacao/movimentacao.service.js';
 import { registrarRotasOrganizacao } from './modules/organizacao/organizacao.controller.js';
 import { PrismaOrganizacaoRepository } from './modules/organizacao/organizacao.repository.js';
 import { OrganizacaoService } from './modules/organizacao/organizacao.service.js';
@@ -28,7 +38,11 @@ import { UsuarioService } from './modules/usuario/usuario.service.js';
 import { registrarHookAutenticacao } from './plugins/auth.js';
 import { registrarErrorHandler } from './plugins/error-handler.js';
 
-export async function buildApp() {
+export interface OpcoesBuildApp {
+  relogio?: Relogio | undefined;
+}
+
+export async function buildApp(opcoes?: OpcoesBuildApp) {
   const app = Fastify({
     logger: false, // usamos nosso próprio logger pino
     genReqId: () => crypto.randomUUID(),
@@ -116,12 +130,16 @@ export async function buildApp() {
   );
 
   // Instanciação das dependências (Repositórios + Services)
+  const relogio = opcoes?.relogio ?? new RelogioReal();
   const transacao = new PrismaGerenciadorTransacao(prisma);
   const auditoriaRepo = new PrismaAuditoriaRepository(prisma);
   const usuarioRepo = new PrismaUsuarioRepository(prisma);
   const parametroRepo = new PrismaParametroRepository(prisma);
   const organizacaoRepo = new PrismaOrganizacaoRepository(prisma);
   const contratoRepo = new PrismaContratoRepository(prisma);
+  const loteRepo = new PrismaLoteRepository(prisma);
+  const equipamentoRepo = new PrismaEquipamentoRepository(prisma);
+  const movimentacaoRepo = new PrismaMovimentacaoRepository(prisma);
 
   const authService = new AuthService(
     usuarioRepo,
@@ -155,6 +173,28 @@ export async function buildApp() {
     auditoriaRepo,
     transacao,
   );
+  const loteService = new LoteService(
+    loteRepo,
+    equipamentoRepo,
+    organizacaoRepo,
+    auditoriaRepo,
+    transacao,
+    relogio,
+    env.TZ_NEGOCIO,
+  );
+  const equipamentoService = new EquipamentoService(
+    equipamentoRepo,
+    loteRepo,
+    movimentacaoRepo,
+    auditoriaRepo,
+    transacao,
+  );
+  const movimentacaoService = new MovimentacaoService(
+    equipamentoRepo,
+    movimentacaoRepo,
+    auditoriaRepo,
+    transacao,
+  );
 
   // Registro das rotas /api/v1
   await app.register(
@@ -164,6 +204,9 @@ export async function buildApp() {
       registrarRotasParametro(api, parametroService);
       registrarRotasOrganizacao(api, organizacaoService);
       registrarRotasContrato(api, contratoService);
+      registrarRotasLote(api, loteService);
+      registrarRotasEquipamento(api, equipamentoService);
+      registrarRotasMovimentacao(api, movimentacaoService);
     },
     { prefix: '/api/v1' },
   );

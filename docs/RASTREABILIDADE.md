@@ -15,18 +15,18 @@
 | A1-01 | 4 papéis com segregação de responsabilidades | ADAPTADO | `src/domain/enums.ts`, `src/plugins/auth.ts`, cada service de módulo | `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
 | A1-02 | Admin gerencia contas e parâmetros globais | MANTIDO | `src/modules/usuario/`, `src/modules/parametro/` | `tests/unit/seguranca/usuario-auth-parametro.service.test.ts`, `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
 | A1-03 | Operador insere organizações e contratos | MANTIDO | `src/modules/organizacao/`, `src/modules/contrato/` | `tests/unit/organizacao/organizacao-contrato.service.test.ts`, `tests/integration/organizacao/organizacao-contrato.test.ts` |
-| A1-04 | Gestor gerencia chegada de lotes, triagem, códigos de barras | MANTIDO | `src/modules/lote/`, `src/modules/equipamento/` | `tests/integration/lote/*.test.ts`, `tests/integration/equipamento/*.test.ts` |
+| A1-04 | Gestor gerencia chegada de lotes, triagem, códigos de barras | MANTIDO | `src/modules/lote/`, `src/modules/equipamento/`, `src/modules/movimentacao/` | `tests/unit/logistica/lote-equipamento-movimentacao.service.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
 | A1-05 | Auditor somente consulta e relatórios, sem alteração | MANTIDO | hook `exigirPapel`, todos os services | `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
 | A1-06 | Senhas com hash SHA-256 | SUBSTITUÍDO | `src/modules/usuario/usuario.service.ts` (bcryptjs) | `tests/unit/seguranca/usuario-auth-parametro.service.test.ts`, `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
 | A1-07 | Sessão expira após 30 min de inatividade | ADAPTADO | `src/plugins/auth.ts`, `src/modules/auth/auth.service.ts` | `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
 | A1-08 | Modelagem OO com herança, interfaces, polimorfismo, fábricas | MANTIDO | `src/domain/` (validadores, fábricas, regras de transição) | `tests/unit/domain/*.test.ts` |
 | A1-09 | Provisionamento inicial do primeiro admin | ADAPTADO | `scripts/criar-admin.ts` | `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
 | A1-10 | Arquivos criptografados AES-256 | SUBSTITUÍDO | N/A (dados no PostgreSQL) | N/A — justificado em DECISOES.md |
-| A1-11 | Escrita atômica (temp + rename) | ADAPTADO | todos os services que alteram estado (`$transaction`) | `tests/integration/*/transacao.test.ts` |
+| A1-11 | Escrita atômica (temp + rename) | ADAPTADO | todos os services que alteram estado (`$transaction`) | `tests/integration/logistica/nucleo-logistico.test.ts` |
 | A1-12 | CNPJ com dígitos verificadores e único | MANTIDO | `src/domain/validators/validador-cnpj.ts`, `src/modules/organizacao/organizacao.service.ts` | `tests/unit/domain/validador-cnpj.test.ts`, `tests/unit/organizacao/organizacao-contrato.service.test.ts`, `tests/integration/organizacao/organizacao-contrato.test.ts` |
-| A1-13 | Lote: dataEntrada não futura nem anterior a 90 dias | MANTIDO | `src/domain/validators/validador-lote.ts`, `src/modules/lote/lote.service.ts` | `tests/unit/domain/validador-lote.test.ts` (borda: hoje, ontem, amanhã, 90d, 91d) |
-| A1-14 | Desmonte só após triagem completa | MANTIDO | `src/domain/regras/regra-desmonte.ts`, `src/modules/equipamento/equipamento.service.ts` | `tests/unit/domain/regra-desmonte.test.ts`, `tests/integration/equipamento/desmonte.test.ts` |
-| A1-15 | Justificativa obrigatória se estado físico cair 2 categorias | MANTIDO | `src/domain/validators/validador-movimentacao.ts`, `src/modules/movimentacao/movimentacao.service.ts` | `tests/unit/domain/validador-movimentacao.test.ts` |
+| A1-13 | Lote: dataEntrada não futura nem anterior a 90 dias | MANTIDO | `src/domain/validators/validador-lote.ts`, `src/modules/lote/lote.service.ts` | `tests/unit/domain/validador-lote.test.ts`, `tests/unit/logistica/lote-equipamento-movimentacao.service.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
+| A1-14 | Desmonte só após triagem completa | MANTIDO | `src/domain/regras/regra-transicao.ts`, `src/modules/equipamento/equipamento.service.ts`, `src/modules/movimentacao/movimentacao.service.ts` | `tests/unit/domain/movimentacao-e-factories.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
+| A1-15 | Justificativa obrigatória se estado físico cair 2 categorias | MANTIDO | `src/domain/validators/validador-movimentacao.ts`, `src/modules/movimentacao/movimentacao.service.ts` | `tests/unit/domain/movimentacao-e-factories.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
 | A1-16 | Journal retido por mínimo 180 dias | ADAPTADO | tabela `Auditoria`, `scripts/limpar-auditoria.ts` | `tests/integration/auditoria/retencao.test.ts` |
 | A1-17 | Rotação do journal ao passar de 10 MB | ADAPTADO | `src/lib/logger.ts` (pino-roll com size=10MB) | `tests/integration/logger/rotacao.test.ts` |
 | A1-18 | Interface CLI com readline, autocompletar, histórico | SUBSTITUÍDO | N/A (API REST + Swagger) | N/A — justificado em DECISOES.md |
@@ -52,12 +52,12 @@
 | A2-06 | schema.prisma com todos os modelos e relacionamentos | `prisma/schema.prisma` | `tests/integration/*/crud.test.ts` |
 | A2-07 | Migrações versionadas do Prisma | `prisma/migrations/` | `npm run test:db:preparar` |
 | A2-08 | PostgreSQL | `docker-compose.yml`, `prisma/schema.prisma` | Todos os testes de integração |
-| A2-09 | Unicidade de CNPJ e codigoBarrasInterno no banco | `prisma/schema.prisma` (@@unique), migração SQL (UNIQUE) | `tests/integration/organizacao/organizacao-contrato.test.ts`, `tests/integration/equipamento/codigo-barras.test.ts` |
-| A2-10 | Constraints e/ou triggers contra estados inconsistentes | Migração SQL manual (`prisma/migrations/*/migration.sql`) | `tests/integration/banco/constraints.test.ts` |
-| A2-11 | include/select intencional (eager loading) | Todos os `*.repository.ts` | Documentado em ARQUITETURA.md + testes de integração |
+| A2-09 | Unicidade de CNPJ e codigoBarrasInterno no banco | `prisma/schema.prisma` (@@unique), migração SQL (UNIQUE + trigger imutabilidade) | `tests/integration/organizacao/organizacao-contrato.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
+| A2-10 | Constraints e/ou triggers contra estados inconsistentes | Migrações SQL manuais (`prisma/migrations/*/migration.sql`) | `tests/integration/logistica/nucleo-logistico.test.ts` |
+| A2-11 | include/select intencional (eager loading) | Todos os `*.repository.ts` | `tests/integration/organizacao/organizacao-contrato.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
 | A2-12 | bcrypt, JWT {id, papel}, hook global, services validam papel | `src/modules/auth/`, `src/plugins/auth.ts` | `tests/unit/seguranca/usuario-auth-parametro.service.test.ts`, `tests/integration/seguranca/auth-usuarios-parametros.test.ts` |
-| A2-13 | $transaction em criação de lote e atualização de status | `src/modules/lote/lote.service.ts`, `src/modules/movimentacao/movimentacao.service.ts` | `tests/integration/*/transacao.test.ts` |
-| A2-14 | Versionamento otimista (campo versao verificado em updates) | Todos os services que fazem update | `tests/integration/*/versao.test.ts`, `tests/integration/*/concorrencia.test.ts` |
+| A2-13 | $transaction em criação de lote e atualização de status | `src/modules/lote/lote.service.ts`, `src/modules/equipamento/equipamento.service.ts`, `src/modules/movimentacao/movimentacao.service.ts` | `tests/integration/logistica/nucleo-logistico.test.ts` |
+| A2-14 | Versionamento otimista (campo versao verificado em updates) | Todos os services que fazem update | `tests/integration/organizacao/organizacao-contrato.test.ts`, `tests/integration/logistica/nucleo-logistico.test.ts` |
 | A2-15 | Seed com massa representativa | `prisma/seed.ts` | `tests/integration/seed/idempotencia.test.ts` |
 | A2-16 | API documentada com OpenAPI/Swagger | `src/plugins/swagger.ts` | Rota `/docs` acessível |
 | A2-17 | Decisões arquiteturais justificadas | `docs/DECISOES.md` | N/A — documentação |
