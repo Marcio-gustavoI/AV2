@@ -14,7 +14,7 @@
 |----|--------------------|--------|-----------|---------|
 | A1-01 | 4 papéis com segregação de responsabilidades | ADAPTADO | `src/domain/enums.ts`, `src/plugins/auth.ts`, cada service de módulo | `tests/integration/auth/papeis.test.ts` |
 | A1-02 | Admin gerencia contas e parâmetros globais | MANTIDO | `src/modules/usuario/`, `src/modules/parametro/` | `tests/integration/usuario/*.test.ts`, `tests/integration/parametro/*.test.ts` |
-| A1-03 | Operador insere organizações e contratos | MANTIDO | `src/modules/organizacao/`, `src/modules/contrato/` | `tests/integration/organizacao/*.test.ts` |
+| A1-03 | Operador insere organizações e contratos | MANTIDO | `src/modules/organizacao/`, `src/modules/contrato/` | `tests/unit/organizacao/organizacao-contrato.service.test.ts`, `tests/integration/organizacao/organizacao-contrato.test.ts` |
 | A1-04 | Gestor gerencia chegada de lotes, triagem, códigos de barras | MANTIDO | `src/modules/lote/`, `src/modules/equipamento/` | `tests/integration/lote/*.test.ts`, `tests/integration/equipamento/*.test.ts` |
 | A1-05 | Auditor somente consulta e relatórios, sem alteração | MANTIDO | hook `exigirPapel`, todos os services | `tests/integration/auth/auditor-acesso-negado.test.ts` |
 | A1-06 | Senhas com hash SHA-256 | SUBSTITUÍDO | `src/modules/usuario/usuario.service.ts` (bcryptjs) | `tests/unit/usuario/hash.test.ts` |
@@ -23,7 +23,7 @@
 | A1-09 | Provisionamento inicial do primeiro admin | ADAPTADO | `scripts/criar-admin.ts` | `tests/integration/scripts/criar-admin.test.ts` |
 | A1-10 | Arquivos criptografados AES-256 | SUBSTITUÍDO | N/A (dados no PostgreSQL) | N/A — justificado em DECISOES.md |
 | A1-11 | Escrita atômica (temp + rename) | ADAPTADO | todos os services que alteram estado (`$transaction`) | `tests/integration/*/transacao.test.ts` |
-| A1-12 | CNPJ com dígitos verificadores e único | MANTIDO | `src/domain/validators/validador-cnpj.ts`, `src/modules/organizacao/organizacao.service.ts` | `tests/unit/domain/validador-cnpj.test.ts`, `tests/integration/organizacao/cnpj.test.ts` |
+| A1-12 | CNPJ com dígitos verificadores e único | MANTIDO | `src/domain/validators/validador-cnpj.ts`, `src/modules/organizacao/organizacao.service.ts` | `tests/unit/domain/validador-cnpj.test.ts`, `tests/unit/organizacao/organizacao-contrato.service.test.ts`, `tests/integration/organizacao/organizacao-contrato.test.ts` |
 | A1-13 | Lote: dataEntrada não futura nem anterior a 90 dias | MANTIDO | `src/domain/validators/validador-lote.ts`, `src/modules/lote/lote.service.ts` | `tests/unit/domain/validador-lote.test.ts` (borda: hoje, ontem, amanhã, 90d, 91d) |
 | A1-14 | Desmonte só após triagem completa | MANTIDO | `src/domain/regras/regra-desmonte.ts`, `src/modules/equipamento/equipamento.service.ts` | `tests/unit/domain/regra-desmonte.test.ts`, `tests/integration/equipamento/desmonte.test.ts` |
 | A1-15 | Justificativa obrigatória se estado físico cair 2 categorias | MANTIDO | `src/domain/validators/validador-movimentacao.ts`, `src/modules/movimentacao/movimentacao.service.ts` | `tests/unit/domain/validador-movimentacao.test.ts` |
@@ -52,7 +52,7 @@
 | A2-06 | schema.prisma com todos os modelos e relacionamentos | `prisma/schema.prisma` | `tests/integration/*/crud.test.ts` |
 | A2-07 | Migrações versionadas do Prisma | `prisma/migrations/` | `npm run test:db:preparar` |
 | A2-08 | PostgreSQL | `docker-compose.yml`, `prisma/schema.prisma` | Todos os testes de integração |
-| A2-09 | Unicidade de CNPJ e codigoBarrasInterno no banco | `prisma/schema.prisma` (@@unique), migração SQL (UNIQUE) | `tests/integration/organizacao/cnpj-duplicado.test.ts`, `tests/integration/equipamento/codigo-barras.test.ts` |
+| A2-09 | Unicidade de CNPJ e codigoBarrasInterno no banco | `prisma/schema.prisma` (@@unique), migração SQL (UNIQUE) | `tests/integration/organizacao/organizacao-contrato.test.ts`, `tests/integration/equipamento/codigo-barras.test.ts` |
 | A2-10 | Constraints e/ou triggers contra estados inconsistentes | Migração SQL manual (`prisma/migrations/*/migration.sql`) | `tests/integration/banco/constraints.test.ts` |
 | A2-11 | include/select intencional (eager loading) | Todos os `*.repository.ts` | Documentado em ARQUITETURA.md + testes de integração |
 | A2-12 | bcrypt, JWT {id, papel}, hook global, services validam papel | `src/modules/auth/`, `src/plugins/jwt.ts` | `tests/integration/auth/*.test.ts` |

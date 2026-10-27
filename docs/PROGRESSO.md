@@ -36,3 +36,11 @@ Após "APROVADO": Fase 3 (domínio: enums, erros, validadores, fábricas, regras
 - `src/domain/`: enums, erros, relogio (unificado com `src/lib/relogio.ts`), `Validador<T>` (Template Method), `ValidadorCnpj`, `ValidadorLote`, `ValidadorMovimentacao`, `RegraTransicao` (polimórfica), `LoteFactory`, `MovimentacaoFactory`.
 - `tests/unit/domain/`: 20 testes unitários cobrindo R1–R6, R10 e bordas de data no fuso `America/Sao_Paulo`.
 - `npm run typecheck`, `npm run lint` e `npm test` (4 arquivos, 22 testes) passando.
+
+
+### Fase 4 – Organização e Contrato (R1): ✅ concluída e validada
+- Repositórios (interface + memória + Prisma): `src/modules/organizacao/organizacao.repository.ts`, `src/modules/contrato/contrato.repository.ts`, `src/modules/auditoria/auditoria.repository.ts`.
+- Services desacoplados de Fastify/Prisma: `src/modules/organizacao/organizacao.service.ts`, `src/modules/contrato/contrato.service.ts` (validação R1, unicidade CNPJ/código, versionamento otimista, auditoria transacional, RBAC).
+- Rotas e JSON Schema (TypeBox): `POST|GET /api/v1/organizacoes`, `GET|PATCH /api/v1/organizacoes/:id`, `POST|GET|PATCH /api/v1/organizacoes/:id/contrato`.
+- Helper de limpeza do banco de teste (`tests/helpers/banco.ts` com `SET LOCAL session_replication_role = 'replica'`) e script `scripts/preparar-banco-teste.ts`.
+- Testes: `tests/unit/organizacao/organizacao-contrato.service.test.ts` (10 testes) e `tests/integration/organizacao/organizacao-contrato.test.ts` (5 testes) — total 6 arquivos, 37 testes passando.

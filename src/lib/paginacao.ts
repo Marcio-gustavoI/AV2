@@ -1,6 +1,6 @@
 export interface PaginacaoInput {
-  pagina?: number;
-  tamanhoPagina?: number;
+  pagina?: number | undefined;
+  tamanhoPagina?: number | undefined;
 }
 
 export interface PaginacaoOutput {

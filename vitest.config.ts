@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    fileParallelism: false,
     // Valores determinísticos para testes; dotenv não sobrescreve variáveis já definidas.
     env: {
       NODE_ENV: 'test',
