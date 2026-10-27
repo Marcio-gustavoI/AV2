@@ -1,107 +1,57 @@
 # PENDÊNCIAS DO PROJETO GREENCODE
 
-> Itens a confirmar com o professor, limitações reais, e decisões tomadas sob incerteza.
+> Itens a confirmar com o professor, limitações reais do ambiente e histórico de itens resolvidos.
 
 ---
 
-## P1 — CNPJ alfanumérico (pesquisa CONFIRMADA; confirmar só a expectativa com o professor)
+## 1. Itens a Confirmar com o Professor (Suposições da Especificação)
 
-**Contexto:** O CNPJ alfanumérico entrou em vigor em 2026 (IN RFB nº 2.229/2024). A especificação (R1) exige pesquisa antes de aceitar letras.
+### P1 — CNPJ alfanumérico (pesquisa CONFIRMADA; confirmar expectativa da correção)
+- **Contexto:** O CNPJ alfanumérico entrou em vigor em 2026 (IN RFB nº 2.229/2024). A especificação (R1) exigiu pesquisa antes de aceitar letras.
+- **Estado atual:** Confirmado por pesquisa oficial (SERPRO/RFB: Módulo 11 com `ASCII - 48`). O `ValidadorCnpj` e o `CHECK` do banco aceitam CNPJs numéricos tradicionais e alfanuméricos (`^[A-Z0-9]{12}[0-9]{2}$`). Ver `docs/DECISOES.md` (D-10).
+- **Ação com o professor:** Confirmar se a bateria de avaliação usará CNPJs alfanuméricos além dos numéricos (o algoritmo implementado cobre ambos).
 
-**Pesquisa:** confirmada na Fase 0 (SERPRO/gov.br): Módulo 11 com valor = código ASCII − 48; 12 primeiras posições aceitam A–Z e 0–9; os 2 dígitos verificadores são numéricos. Ver **DECISOES.md D-10**.
+### P2 — Contrato opcional para criar lote (`C6`)
+- **Contexto:** A AV2 define que a organização possui contrato opcional (`0..1`).
+- **Estado atual:** `LoteService.criar` exige organização existente (`R11`), mas **não** exige que a organização possua contrato vigente para receber lotes (`D-C6`).
+- **Ação com o professor:** Confirmar se lotes de coleta avulsos/experimentais sem contrato seguem o esperado na avaliação.
 
-**Decisão adotada:** `ValidadorCnpj` aceita letras e dígitos. Normalização remove pontuação e coloca em maiúsculas; formato `/^[A-Z0-9]{12}\d{2}$/`.
+### P5 — Fórmula financeira (`R8`)
+- **Contexto:** Implementada a fórmula exata da especificação: `valorResidual = valorAquisicao × (1 − coeficienteDepreciacao(tipo))` e `imposto = valorResidual × aliquota`, com `Decimal` e arredondamento `ROUND_HALF_UP` a 2 casas decimais. Equipamentos sem `valorAquisicao` são contabilizados separadamente em `equipamentosSemValorAquisicao`.
+- **Ação com o professor:** Confirmar se a fórmula e o arredondamento a cada etapa atendem integralmente ao gabarito.
 
-**Ação necessária:** professor confirmar se a avaliação espera CNPJ alfanumérico ou apenas numérico (o mesmo algoritmo cobre ambos).
+### P6 — Nomes de classes, enums e campos sem o diagrama UML original da AV1 (`C5`)
+- **Contexto:** O diagrama UML da AV1 não foi anexado ao enunciado.
+- **Estado atual:** Todos os nomes de classes (`Validador<T>`, `ValidadorCnpj`, `ValidadorLote`, `ValidadorMovimentacao`, `LoteFactory`, `MovimentacaoFactory`, `RegraTransicao`), enums e campos seguiram literalmente o prompt mestre e estão diagramados em `docs/ARQUITETURA.md`.
 
----
-
-## P2 — Contrato opcional para criar lote (CONFIRMAR COM O PROFESSOR)
-
-**Contexto:** a AV2 diz que o contrato é opcional. Decisão C6: não exigir contrato vigente para criar lote.
-
-**Ação necessária:** professor confirmar.
-
----
-
-## P3 — `psql` não está no PATH do Windows
-
-**Decisão:** PostgreSQL via Docker Compose; comandos SQL manuais via `docker exec ... psql`. Impacto nulo.
-
----
-
-## P4 — Teste de SIGTERM no Windows
-
-**Decisão:** teste de shutdown com SIGTERM usa `skipIf(process.platform === 'win32')`, com justificativa no código; roda no CI Linux.
+### P7 — Campo `versao` em modelos append-only (`C8`)
+- **Estado atual:** `Movimentacao` possui `versao = 1` (constante) e trigger bloqueando `UPDATE`/`DELETE`; `Auditoria` não possui coluna `versao` por ser puramente append-only e protegida por trigger (`D-C8` e `D-14`).
 
 ---
 
-## P5 — Fórmula financeira R8 (CONFIRMAR COM O PROFESSOR)
+## 2. Limitações Reais de Ambiente e Riscos Residuais Conhecidos
 
-`valorResidual = valorAquisicao × (1 − coeficiente(tipo))`, `imposto = valorResidual × alíquota`, arredondamento a 2 casas (ROUND_HALF_UP). Registrada como suposição.
+### P4 — Sinal POSIX `SIGTERM` no Windows
+- **Contexto:** No Windows, `child.kill('SIGTERM')` no Node.js chama `TerminateProcess()` da Win32 API, encerrando o processo abruptamente sem invocar handlers JavaScript.
+- **Estado atual:** O graceful shutdown foi provado em teste automatizado no Windows via `SIGINT` (processo filho saindo com código `0` e fechando conexões). O teste nativo de `SIGTERM` está presente em `tests/integration/acabamento/acabamento-fase8.test.ts` com `it.skipIf(process.platform === 'win32')` e executa no job Linux do CI (`.github/workflows/ci.yml`).
 
----
+### P8 — Execução em Ubuntu 24.04 LTS
+- **Contexto:** O desenvolvimento e todas as execuções reais de banco, migrações, seed, testes, cobertura e jornada foram realizados em **Windows 10/11**.
+- **Estado atual:** A compatibilidade com Ubuntu 24.04 foi preparada por meio de scripts npm 100% portáveis, caminhos com `path.join`/`path.resolve`, `bcryptjs` puro em JS, `.gitattributes` (`eol=lf`), `docker-compose.yml` e workflow `.github/workflows/ci.yml` com `ubuntu-24.04`, mas o ambiente Ubuntu não foi executado localmente nesta máquina Windows.
 
-## P6 — UML da AV1 não fornecido (C5)
-
-Nomes de classes/enums/campos são suposições baseadas na especificação. UML do implementado irá em `docs/ARQUITETURA.md`.
-
----
-
-## P7 — `versao` em Auditoria (C8)
-
-`Auditoria` não tem `versao`; `Movimentacao` tem `versao = 1`.
+### P9 — Vulnerabilidade transitiva `deepmerge-ts` na CLI do Prisma 6
+- **Contexto:** `npm audit` aponta vulnerabilidade na dependência transitiva `@prisma/config -> deepmerge-ts` da CLI `prisma` (pacote de desenvolvimento). Atualizar forçadamente exigiria migrar para Prisma 7 (mudança incompatível de arquitetura de configuração).
+- **Estado atual:** Mantido Prisma `6.19.3`; o pacote vulnerável não faz parte do runtime de produção (`@prisma/client`). Documentado em `docs/SEGURANCA.md`.
 
 ---
 
-## P8 — Verificação por sistema operacional
-
-- Windows 10/11: ambiente de desenvolvimento (verificações registradas em DECISOES.md D-15 e PROGRESSO.md).
-- Ubuntu 24.04: somente via CI (Fase 10), ainda não executado.
-
----
-
-## P9 — Vulnerabilidade `deepmerge-ts` (transitiva do Prisma 6)
-
-**Contexto:** `npm audit` reporta 3 vulnerabilidades `high` na cadeia `prisma → @prisma/config → deepmerge-ts < 8.0.0` (esgotamento de pilha ao mesclar objetos recursivos).
-
-**Decisão:** manter Prisma 6.19.3. `npm audit fix --force` migraria para Prisma 7 (config e adapter diferentes), o que reescreveria a Fase 2. Afeta a CLI de desenvolvimento, não o fluxo de dados da API.
-
-**Ação necessária:** professor confirmar que manter Prisma 6 é aceitável. Registrar como risco residual em SEGURANCA.md.
-
----
-
-## P10 — Graceful shutdown ainda não demonstrado no Windows
-
-**Contexto:** no Windows, matar um processo filho de fora não aciona o handler de `SIGINT`. Na Fase 1 foram verificados apenas boot, `/saude` e 404 padronizado.
-
-**Alternativa:** teste automatizado com processo filho na Fase 10 (SIGTERM pulado no Windows, executado no CI Linux). **Ainda não executado.**
-
----
-
-## P11 — Mensagem de boot cita `/docs` antes de o Swagger existir
-
-`src/server.ts` loga a URL `/docs`, mas o Swagger só será registrado na Fase 8. Corrigir/validar então.
-
----
-
-## Histórico de pendências resolvidas
+## 3. Histórico de Pendências Concluídas
 
 | ID | Descrição | Resolução |
-|----|-----------|-----------|
-| P10 (antigo) | Timeouts de permissão do terminal na sessão anterior | Obsoleto: os comandos agora rodam normalmente |
-| Lint/typecheck | `tsconfig.test.json` herdava `exclude` de `tests/`, então testes não eram checados | Corrigido na retomada (exclude sobrescrito) |
-
----
-
-## P12 — Fase 10: teste do trigger da Auditoria com a variável NUNCA definida
-
-O bug D-17 (`NULL <> 'on'`) só aparece quando a variável `greencode.limpeza` nunca foi definida na sessão. O teste automatizado deve cobrir os três estados: nunca definida, `off` e `on`. **Pendente (Fase 10).**
-
-## P13 — Limpeza dos testes de integração (definido na Fase 4)
-
-O trigger da Auditoria bloqueia DELETE de registros com menos de 180 dias e TRUNCATE. **Decisão:** helper de teste `limparBanco` que, em uma transação, executa `SET LOCAL session_replication_role = replica` (desabilita os triggers comuns, exige superusuário; o usuário do container Docker é superusuário) e depois `TRUNCATE` das tabelas e `ALTER SEQUENCE seq_codigo_barras RESTART`. O helper recusa rodar se `DATABASE_URL` não contiver `_test`. Alternativa descartada: recriar o schema a cada teste (lento).
-
-## P14 — Fase 6: terceira migração (código de barras imutável)
-
-Criar a migração 3 com trigger que bloqueia UPDATE de `equipamentos.codigo_barras_interno` (R6: imutável), com teste. **Pendente (Fase 6).**
+|---|---|---|
+| P3 | `psql` ausente no PATH do Windows | Resolvido via `docker compose` e `PrismaClient` / `docker exec` |
+| P10 | Teste automatizado de graceful shutdown | Implementado e validado em `tests/integration/acabamento/acabamento-fase8.test.ts` |
+| P11 | Rota `/docs` do Swagger | Implementada em `src/plugins/swagger.ts` e validada em `/docs` e `/docs/json` |
+| P12 | Teste automatizado do trigger da Auditoria com variável `greencode.limpeza` nunca definida | Implementado e validado em `tests/integration/acabamento/acabamento-fase8.test.ts` |
+| P13 | Limpeza dos testes de integração respeitando os triggers | Implementado em `tests/helpers/banco.ts` com `SET LOCAL session_replication_role = replica` restrito ao banco `_test` |
+| P14 | Terceira migração com trigger de imutabilidade de `codigo_barras_interno` (`R6`) | Implementada em `prisma/migrations/20261026195500_codigo_barras_imutavel/migration.sql` e testada em `tests/integration/logistica/nucleo-logistico.test.ts` |

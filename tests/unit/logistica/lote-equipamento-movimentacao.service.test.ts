@@ -292,5 +292,45 @@ describe('Núcleo Logístico: LoteService, EquipamentoService e MovimentacaoServ
         codigoBarrasInterno: 'GC-900001',
       }),
     ).rejects.toBeInstanceOf(ErroConflito);
+
+    // Exercita listagens, busca por ID e rastreabilidade nos services em memória
+    const loteDetalhe = await loteService.buscarPorId(ATOR_AUDITOR, lote.id);
+    expect(loteDetalhe.id).toBe(lote.id);
+
+    await expect(
+      loteService.buscarPorId(ATOR_AUDITOR, '00000000-0000-0000-0000-000000000999'),
+    ).rejects.toBeInstanceOf(ErroNaoEncontrado);
+
+    const listaLotes = await loteService.listar(ATOR_AUDITOR, {
+      organizacaoId: orgIdPadrao,
+      pagina: 1,
+      tamanhoPagina: 10,
+    });
+    expect(listaLotes.dados.length).toBeGreaterThanOrEqual(1);
+
+    const listaEq = await eqService.listar(ATOR_AUDITOR, {
+      loteId: lote.id,
+      status: StatusEquipamento.RECEBIDO,
+      estadoFisico: EstadoFisico.BOM,
+      tipo: TipoEquipamento.DESKTOP,
+      pagina: 1,
+      tamanhoPagina: 10,
+    });
+    expect(listaEq.dados).toHaveLength(1);
+    const eqIdCriado = listaEq.dados[0]!.id;
+
+    const eqDetalhe = await eqService.buscarPorId(ATOR_AUDITOR, eqIdCriado);
+    expect(eqDetalhe.id).toBe(eqIdCriado);
+
+    await expect(
+      eqService.buscarPorId(ATOR_AUDITOR, '00000000-0000-0000-0000-000000000999'),
+    ).rejects.toBeInstanceOf(ErroNaoEncontrado);
+
+    const rastro = await eqService.obterRastreabilidade(ATOR_AUDITOR, eqIdCriado);
+    expect(rastro.equipamento.id).toBe(eqIdCriado);
+
+    await expect(
+      eqService.obterRastreabilidade(ATOR_AUDITOR, '00000000-0000-0000-0000-000000000999'),
+    ).rejects.toBeInstanceOf(ErroNaoEncontrado);
   });
 });

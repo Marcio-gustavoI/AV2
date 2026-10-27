@@ -207,5 +207,37 @@ describe('Segurança: UsuarioService, AuthService e ParametroService (unitários
     });
     expect(atualizado.versao).toBe(2);
     expect(atualizado.valor).toBe('0.180000');
+
+    // Definir em lote (criando novo e atualizando existente) e listar
+    const emLote = await parametroService.definirLote(ATOR_ADMIN, [
+      { chave: 'ALIQUOTA_IMPOSTO', valor: '0.20', versao: 2 },
+      { chave: 'COEF_DEPRECIACAO_DESKTOP', valor: '0.40' },
+    ]);
+    expect(emLote).toHaveLength(2);
+
+    const listaParams = await parametroService.listar(ATOR_ADMIN);
+    expect(listaParams).toHaveLength(2);
+
+    // UsuarioService: buscarPorId, listar e atualizar e-mail/senha/papel
+    const uCriado = await usuarioService.criar(ATOR_ADMIN, {
+      email: 'busca@greencode.com',
+      senha: 'SenhaForte123',
+      papel: Papel.OPERADOR_CADASTRO,
+    });
+    const encontrado = await usuarioService.buscarPorId(ATOR_ADMIN, uCriado.id);
+    expect(encontrado.email).toBe('busca@greencode.com');
+
+    const listaUsuarios = await usuarioService.listar(ATOR_ADMIN, { pagina: 1, tamanhoPagina: 10 });
+    expect(listaUsuarios.dados.length).toBeGreaterThanOrEqual(1);
+
+    const uAtualizado = await usuarioService.atualizar(ATOR_ADMIN, {
+      id: uCriado.id,
+      versao: 1,
+      email: 'novoemail@greencode.com',
+      senha: 'NovaSenhaForte456',
+      papel: Papel.GESTOR_ALMOXARIFADO,
+    });
+    expect(uAtualizado.email).toBe('novoemail@greencode.com');
+    expect(uAtualizado.papel).toBe(Papel.GESTOR_ALMOXARIFADO);
   });
 });

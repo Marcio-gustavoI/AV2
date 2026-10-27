@@ -46,6 +46,17 @@ async function start(): Promise<void> {
   process.on('message', (msg) => {
     if (msg === 'SIGINT' || msg === 'SIGTERM') {
       void shutdown(msg);
+    } else if (
+      typeof msg === 'object' &&
+      msg !== null &&
+      'tipo' in msg &&
+      (msg as { tipo?: unknown }).tipo === 'GREENCODE_SHUTDOWN_TEST'
+    ) {
+      const sinal =
+        'signal' in msg && typeof (msg as { signal?: unknown }).signal === 'string'
+          ? ((msg as { signal: string }).signal)
+          : 'SIGINT';
+      void shutdown(sinal);
     }
   });
 

@@ -1,0 +1,94 @@
+name: CI — greencode
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  linux-completo:
+    name: Ubuntu 24.04 (PostgreSQL + Testes Completos + Cobertura)
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres_test:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: greencode
+          POSTGRES_PASSWORD: greencode
+          POSTGRES_DB: greencode_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://greencode:greencode@localhost:5433/greencode_test?schema=public
+      DATABASE_URL_TEST: postgresql://greencode:greencode@localhost:5433/greencode_test?schema=public
+      JWT_SECRET: segredo-ci-somente-para-testes-com-mais-de-32-caracteres
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client e aplicar migrações no banco de teste
+        run: |
+          npx prisma generate
+          npm run test:db:preparar
+
+      - name: Verificar tipos (Typecheck)
+        run: npm run typecheck
+
+      - name: Verificar estilo e regras estáticas (ESLint)
+        run: npm run lint
+
+      - name: Executar suíte completa (Unitários + Integração + Cobertura)
+        run: npm run test:coverage
+
+  windows-portabilidade:
+    name: Windows (Typecheck + Lint + Testes Unitários de Domínio e Services)
+    runs-on: windows-latest
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://greencode:greencode@localhost:5433/greencode_test?schema=public
+      JWT_SECRET: segredo-ci-somente-para-testes-com-mais-de-32-caracteres
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Verificar tipos (Typecheck)
+        run: npm run typecheck
+
+      - name: Verificar estilo e regras estáticas (ESLint)
+        run: npm run lint
+
+      - name: Executar testes unitários (sem dependência de container Docker Linux no runner Windows)
+        run: npx vitest run --config vitest.config.ts tests/unit

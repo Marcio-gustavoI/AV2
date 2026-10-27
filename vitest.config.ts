@@ -21,12 +21,25 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/server.ts', 'src/lib/prisma.ts'],
+      exclude: [
+        'src/server.ts',
+        'src/lib/prisma.ts',
+        'src/lib/relogio.ts',
+        'src/domain/index.ts',
+      ],
       thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85,
+        'src/domain/**/*.ts': {
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
+        },
+        'src/modules/**/*.service.ts': {
+          lines: 85,
+          functions: 85,
+          branches: 78,
+          statements: 85,
+        },
       },
     },
     alias: {

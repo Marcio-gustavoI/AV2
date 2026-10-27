@@ -587,6 +587,72 @@ describe('Integração Fase 6: Núcleo Logístico (Lote, Equipamento, Triagem, M
     ).rejects.toThrow(/codigo_barras_interno é imutável/i);
   });
 
+  it('UPDATE e DELETE em movimentacoes bloqueados pelo trigger de imutabilidade (C8, A2-10)', async () => {
+    const resLote = await app.inject({
+      method: 'POST',
+      url: '/api/v1/lotes',
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        orgCodigo: 'BR001',
+        notaFiscal: 'NF-MOV-IMUTAVEL',
+        transportadora: 'Transp',
+        dataEntrada: hojeStr,
+        equipamentos: [
+          {
+            tipo: TipoEquipamento.NOTEBOOK,
+            descricao: 'Notebook Movimentação Imutável',
+            estadoFisico: EstadoFisico.BOM,
+          },
+        ],
+      },
+    });
+    const loteId = resLote.json().id as string;
+    const eqId = resLote.json().equipamentos[0].id as string;
+
+    const movRes = await app.inject({
+      method: 'POST',
+      url: `/api/v1/equipamentos/${eqId}/movimentacoes`,
+      headers: gerarCabecalhoAuth(app, Papel.GESTOR_ALMOXARIFADO),
+      payload: {
+        versao: 1,
+        statusNovo: StatusEquipamento.EM_TRIAGEM,
+      },
+    });
+    expect(movRes.statusCode).toBe(200);
+    const movId = movRes.json().movimentacao.id as string;
+
+    // 1. UPDATE em movimentacoes é bloqueado pelo trigger fn_proteger_movimentacao
+    await expect(
+      prisma.$executeRawUnsafe(
+        `UPDATE "movimentacoes" SET "justificativa" = 'Adulterado' WHERE "id" = '${movId}'::uuid;`,
+      ),
+    ).rejects.toThrow(/imutáveis.*UPDATE/i);
+
+    // 2. DELETE em movimentacoes é bloqueado pelo trigger fn_proteger_movimentacao
+    await expect(
+      prisma.$executeRawUnsafe(
+        `DELETE FROM "movimentacoes" WHERE "id" = '${movId}'::uuid;`,
+      ),
+    ).rejects.toThrow(/imutáveis.*DELETE/i);
+
+    // Aproveita para exercitar GET /api/v1/lotes/:id e GET /api/v1/equipamentos/:id
+    const getLoteDetalhe = await app.inject({
+      method: 'GET',
+      url: `/api/v1/lotes/${loteId}`,
+      headers: gerarCabecalhoAuth(app, Papel.AUDITOR),
+    });
+    expect(getLoteDetalhe.statusCode).toBe(200);
+    expect(getLoteDetalhe.json().id).toBe(loteId);
+
+    const getEqDetalhe = await app.inject({
+      method: 'GET',
+      url: `/api/v1/equipamentos/${eqId}`,
+      headers: gerarCabecalhoAuth(app, Papel.AUDITOR),
+    });
+    expect(getEqDetalhe.statusCode).toBe(200);
+    expect(getEqDetalhe.json().id).toBe(eqId);
+  });
+
   it('valida matriz de permissões em Lotes, Equipamentos, Triagem e Movimentações (OPERADOR_CADASTRO e AUDITOR recebem 403 na escrita e 200 na leitura)', async () => {
     const resLote = await app.inject({
       method: 'POST',

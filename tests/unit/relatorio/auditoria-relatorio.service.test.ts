@@ -125,7 +125,97 @@ describe('Fase 7: AuditoriaService e RelatorioService (unitários em memória)',
     const pag = await auditoriaService.listar(ATOR_ADMIN, {
       pagina: 1,
       tamanhoPagina: 500, // deve ser limitado a 100
+      dataInicio: '2026-01-01',
+      dataFim: '2026-12-31',
     });
     expect(pag.paginacao.tamanhoPagina).toBe(100);
+
+    // Também aceita instâncias de Date e ISO strings
+    const pagDate = await auditoriaService.listar(ATOR_ADMIN, {
+      dataInicio: new Date('2026-01-01T00:00:00Z'),
+      dataFim: '2026-12-31T23:59:59Z',
+    });
+    expect(pagDate.paginacao.pagina).toBe(1);
+
+    // Rejeita intervalo invertido (dataFim < dataInicio) e datas inválidas
+    await expect(
+      auditoriaService.listar(ATOR_ADMIN, {
+        dataInicio: '2026-12-31',
+        dataFim: '2026-01-01',
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      auditoriaService.listar(ATOR_ADMIN, {
+        dataInicio: 'data-invalida',
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      auditoriaService.listar(ATOR_ADMIN, {
+        dataInicio: new Date('invalid'),
+      }),
+    ).rejects.toThrow();
+
+    // RelatorioService: filtros de data, resumo com múltiplos equipamentos e validações de período
+    relatorioRepo.itens = [
+      {
+        id: '00000000-0000-0000-0000-000000000201',
+        codigoBarrasInterno: 'GC-000201',
+        tipo: TipoEquipamento.DESKTOP,
+        descricao: 'Desktop Resumo 1',
+        valorAquisicao: '1000.00',
+        estadoFisico: EstadoFisico.BOM,
+        status: StatusEquipamento.RECEBIDO,
+        criadoEm: new Date('2026-05-10T10:00:00Z'),
+        organizacao: { id: 'org-1', codigo: 'BR001', nome: 'Org 1' },
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000202',
+        codigoBarrasInterno: 'GC-000202',
+        tipo: TipoEquipamento.NOTEBOOK,
+        descricao: 'Notebook Resumo 2',
+        valorAquisicao: '2000.00',
+        estadoFisico: EstadoFisico.EXCELENTE,
+        status: StatusEquipamento.TRIADO,
+        criadoEm: new Date('2026-05-11T10:00:00Z'),
+        organizacao: { id: 'org-1', codigo: 'BR001', nome: 'Org 1' },
+      },
+    ];
+
+    const resumo = await relatorioService.gerarResumo(ATOR_AUDITOR, {
+      organizacaoId: 'org-1',
+      dataInicio: '2026-05-01',
+      dataFim: '2026-05-31',
+    });
+    expect(resumo.totalEquipamentos).toBe(2);
+    expect(resumo.porOrganizacao[0]?.quantidade).toBe(2);
+    expect(resumo.periodo.dataInicio).not.toBeNull();
+    expect(resumo.periodo.dataFim).not.toBeNull();
+
+    const resumoDate = await relatorioService.gerarResumo(ATOR_ADMIN, {
+      dataInicio: new Date('2026-05-01T00:00:00Z'),
+      dataFim: '2026-05-31T23:59:59Z',
+    });
+    expect(resumoDate.totalEquipamentos).toBe(2);
+
+    await expect(
+      relatorioService.gerarResumo(ATOR_AUDITOR, {
+        dataInicio: '2026-06-10',
+        dataFim: '2026-06-01',
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      relatorioService.gerarResumo(ATOR_AUDITOR, {
+        dataInicio: 'data-invalida',
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      relatorioService.gerarResumo(ATOR_AUDITOR, {
+        dataInicio: new Date('invalid'),
+      }),
+    ).rejects.toThrow();
   });
 });

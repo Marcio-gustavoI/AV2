@@ -282,10 +282,28 @@ describe('OrganizacaoService e ContratoService (unitários em memória)', () => 
       const atualizado = await contratoService.atualizar(ATOR_OPERADOR, {
         organizacaoId: org.id,
         versao: 1,
+        numero: 'CT-01-NOVO',
+        clausulas: { slaHoras: 12 },
+        inicio: '2026-02-01',
         fim: '2026-12-31',
       });
 
       expect(atualizado.versao).toBe(2);
+      expect(atualizado.numero).toBe('CT-01-NOVO');
+
+      // Atualiza também código da organização e valida 404
+      const orgAtualizada = await orgService.atualizar(ATOR_OPERADOR, {
+        id: org.id,
+        versao: 1,
+        codigo: 'BR099',
+        nome: 'Org Contrato Renomeada',
+      });
+      expect(orgAtualizada.codigo).toBe('BR099');
+      expect(orgAtualizada.nome).toBe('Org Contrato Renomeada');
+
+      await expect(
+        orgService.buscarPorId(ATOR_ADMIN, '00000000-0000-0000-0000-000000000999'),
+      ).rejects.toBeInstanceOf(ErroNaoEncontrado);
 
       await expect(
         contratoService.atualizar(ATOR_OPERADOR, {
@@ -301,6 +319,42 @@ describe('OrganizacaoService e ContratoService (unitários em memória)', () => 
           '00000000-0000-0000-0000-999999999999',
         ),
       ).rejects.toBeInstanceOf(ErroNaoEncontrado);
+
+      const encontrado = await contratoService.buscarPorOrganizacao(ATOR_ADMIN, org.id);
+      expect(encontrado.numero).toBe('CT-01-NOVO');
+
+      // Remove data fim (fim: null) e valida restrições de escrita e regras de contrato
+      const semFim = await contratoService.atualizar(ATOR_OPERADOR, {
+        organizacaoId: org.id,
+        versao: 2,
+        fim: null,
+      });
+      expect(semFim.fim).toBeNull();
+
+      await expect(
+        contratoService.atualizar(ATOR_OPERADOR, {
+          organizacaoId: org.id,
+          versao: 3,
+          numero: '   ',
+        }),
+      ).rejects.toBeInstanceOf(ErroRegraDeNegocio);
+
+      await expect(
+        contratoService.atualizar(ATOR_OPERADOR, {
+          organizacaoId: org.id,
+          versao: 3,
+          inicio: '2026-10-10',
+          fim: '2026-10-01',
+        }),
+      ).rejects.toBeInstanceOf(ErroRegraDeNegocio);
+
+      await expect(
+        contratoService.criar(ATOR_AUDITOR, {
+          organizacaoId: org.id,
+          numero: 'CT-AUD',
+          inicio: '2026-01-01',
+        }),
+      ).rejects.toBeInstanceOf(ErroSemPermissao);
     });
   });
 });

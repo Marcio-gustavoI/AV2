@@ -309,17 +309,19 @@
 
 **Contexto:** A especificação exige registrar quais verificações foram executadas em cada SO.
 
-**Verificações no Windows 10/11 (ambiente de desenvolvimento — 2026-10-21):**
+**Verificações no Windows 10/11 (ambiente de desenvolvimento — executado e comprovado):**
 - ✅ Node.js v22.14.0
 - ✅ npm 10.9.2
-- ✅ Docker 29.5.3
-- ✅ Docker Compose v5.1.4
+- ✅ Docker 29.5.3 e Docker Compose v5.1.4 (`greencode_db` na 5432 e `greencode_db_test` na 5433)
 - ✅ git 2.49.0
-- ❌ psql: não disponível no PATH (usando Docker)
-- ⏳ Typecheck, lint, testes de integração: a verificar nas fases subsequentes
+- ✅ `npx prisma validate` e `npx prisma migrate deploy` (3 migrações aplicadas em banco vazio)
+- ✅ `npm run typecheck`, `npm run lint` e `npm run test:coverage` (16 suítes de testes unitários e de integração passando)
+- ✅ `npm run db:seed` executado duas vezes seguidas (idempotência verificada)
+- ✅ `npm run jornada` executado contra o servidor HTTP real em execução (15/15 passos verificados)
+- ✅ Graceful shutdown com `SIGINT` verificado via processo filho (teste de `SIGTERM` nativo marcado como `skipIf(win32)` com justificativa técnica)
 
-**Verificações no Ubuntu 24.04 (CI — GitHub Actions):**
-- ⏳ Todos os itens: a verificar quando CI for configurado (Fase 10)
+**Verificações no Ubuntu 24.04:**
+- ⚠️ Configurado no workflow `.github/workflows/ci.yml` (PostgreSQL 16 como service container, migrações, seed e suíte completa de testes), mas **não executado localmente** pois a máquina de desenvolvimento é Windows.
 
 ---
 
@@ -362,6 +364,54 @@
 **Alternativas rejeitadas:** `ON DELETE CASCADE` (apagaria histórico auditável); `SET NULL` na Auditoria (apagaria o autor do registro); `TEXT` para UUID (aceita lixo).
 
 **Consequências:** O banco recusa dados fora de padrão (ids malformados, histórico alterado). Os testes e o seed precisam gerar UUIDs válidos e a limpeza de testes precisa de TRUNCATE.
+
+---
+
+## D-19 — Status HTTP 422 para regras de domínio (incluindo CNPJ inválido) vs 400 para schema
+
+**Contexto:** Na validação de entrada, um erro pode ser sintático (tipo errado, campo obrigatório ausente no JSON Schema do Fastify) ou semântico/de negócio (CNPJ com dígitos verificadores inválidos, sequência repetida, transição de status proibida, lote fora da janela de 90 dias).
+
+**Decisão:** O schema TypeBox da rota valida tipos básicos (`string`, `minLength: 1`), permitindo que o `Service` normalize o CNPJ e aplique o `ValidadorCnpj`, lançando `ErroRegraDeNegocio` mapeado para **422 Unprocessable Entity** (`severidade: AVISO`). Violação estrutural do JSON Schema retorna **400 Bad Request** (`VALIDACAO_INVALIDA`).
+
+**Alternativas rejeitadas:** Validar regex estrito de CNPJ no JSON Schema da rota (retornaria 400 genérico sem distinguir dígitos repetidos ou erro de dígito verificador com mensagem de negócio clara).
+
+**Consequências:** Clientes recebem `422 CNPJ_INVALIDO` com detalhes por campo quando o CNPJ é inválido e `400 VALIDACAO_INVALIDA` quando o payload JSON está malformado.
+
+---
+
+## D-20 — Criação de lote com ou sem equipamentos iniciais
+
+**Contexto:** Um lote pode chegar ao almoxarifado com a lista completa de equipamentos já conhecida na nota fiscal (`POST /api/v1/lotes` com `equipamentos[]`) ou ter equipamentos cadastrados individualmente à medida que o caminhão é descarregado (`POST /api/v1/equipamentos`).
+
+**Decisão:** `POST /api/v1/lotes` aceita `equipamentos` opcional (ou lista vazia) e cria todos os equipamentos informados na mesma `$transaction` atômica. Caso qualquer equipamento da lista seja inválido, nenhum equipamento nem o lote são persistidos. Equipamentos adicionais podem ser cadastrados via `POST /api/v1/equipamentos` informando `loteId`.
+
+**Alternativas rejeitadas:** Exigir obrigatoriamente ao menos 1 equipamento no `POST /lotes` (impediria criar o lote antes de bipar equipamentos avulsos em `POST /equipamentos`).
+
+**Consequências:** Flexibilidade operacional preservando a atomicidade exigida em R7 e A2-13.
+
+---
+
+## D-21 — Formato `GC-000001` e imutabilidade do código de barras interno (R6)
+
+**Contexto:** Cada equipamento precisa de um identificador físico único e imutável no formato `GC-` + sequencial com zeros à esquerda.
+
+**Decisão:** Formato padronizado `^GC-\d{6,}$` (ex.: `GC-000001`), gerado via `SELECT nextval('seq_codigo_barras')` no PostgreSQL quando não enviado pelo cliente. Além do índice `UNIQUE`, a 3ª migração (`20261026195500_codigo_barras_imutavel`) criou o trigger `trg_equipamentos_codigo_barras_imutavel` que bloqueia qualquer tentativa de `UPDATE` em `codigo_barras_interno`.
+
+**Alternativas rejeitadas:** Incluir o ano no código (`GC-2026-000001`) ou gerar código via `MAX(id) + 1` em aplicação (vulnerável a condição de corrida sob concorrência).
+
+**Consequências:** Geração segura contra concorrência e imutabilidade garantida no próprio SGBD.
+
+---
+
+## D-22 — Limpeza do banco de testes com `session_replication_role = replica`
+
+**Contexto:** Os triggers de imutabilidade bloqueiam `DELETE` (em `movimentacoes` e em `auditorias` com menos de 180 dias) e `TRUNCATE` (em `auditorias`), o que impediria isolar cada teste de integração.
+
+**Decisão:** O helper `limparBanco()` (`tests/helpers/banco.ts`) verifica obrigatoriamente que `DATABASE_URL` aponta para um banco `_test`, abre uma transação e executa `SET LOCAL session_replication_role = replica` antes do `TRUNCATE TABLE ... RESTART IDENTITY CASCADE` e `ALTER SEQUENCE seq_codigo_barras RESTART WITH 1`.
+
+**Alternativas rejeitadas:** Recriar o banco de dados inteiro com `migrate reset` antes de cada teste (tornaria a suíte dezenas de vezes mais lenta).
+
+**Consequências:** Limpeza rápida (~15ms por teste) e segura, restrita exclusivamente ao banco `_test`.
 
 ---
 
